@@ -7,6 +7,7 @@ import { Checkbox, Field, Input } from '@/components/ui/form';
 import { Clave, EntradaLayout } from '@/screens/entrada';
 import { Enlace } from '@/lib/router';
 import { crearClienteNavegador } from '@/lib/supabase/client';
+import { entrarServidor } from '@/lib/servidor/entrar';
 import { aceptarInvitacion, politicaVigente } from '@/lib/portal/acciones';
 import { codigoDeError, mensajeDeError } from '@/lib/portal/errores';
 import { CLAVE_MINIMA, errorDeClave, mensajeDeAuth } from '@/lib/app/auth-errores';
@@ -67,10 +68,12 @@ export function PantallaActivar() {
     setEnviando(true);
     const c = crearClienteNavegador();
     if (modo === 'entrar') {
-      const { data, error: err } = await c.auth.signInWithPassword({ email: correo.trim(), password: c1 });
+      // Con el freno de 5 intentos en el servidor (plan B).
+      const r = await entrarServidor({ correo: correo.trim(), clave: c1 });
       setEnviando(false);
-      if (err) { setError(mensajeDeAuth(err)); return; }
-      setCorreoSesion(data.user?.email ?? correo.trim()); setIntento(false); setPaso('completar');
+      if (!r.ok) { setError(r.mensaje); return; }
+      const { data: u } = await c.auth.getUser();
+      setCorreoSesion(u.user?.email ?? correo.trim()); setIntento(false); setPaso('completar');
       return;
     }
     const { data, error: err } = await c.auth.signUp({ email: correo.trim(), password: c1, options: { emailRedirectTo: window.location.href } });

@@ -9,6 +9,7 @@
 --   super_admin     -> todos los super admin activos
 --   cliente_admin   -> los admin de la empresa
 --   cliente_dinero  -> los admin y quienes tienen "ver dinero" en la empresa
+--   cliente_aprobador -> los admin y quienes tienen "aprobar" en la empresa (revisiones)
 -- Estados: pendiente -> enviando -> enviado | (error) pendiente con reintento | fallido (5 intentos) |
 --          pendiente_sin_proveedor (no hay RESEND_API_KEY; sale cuando exista) | cancelado (sin destinatarios).
 -- Quien la vacia es el despachador del servidor (lib/servidor/avisos/) con la clave de sistema, SOLO por las
@@ -23,7 +24,7 @@ alter table public.avisos_salientes drop constraint avisos_salientes_tipo_check;
 alter table public.avisos_salientes add constraint avisos_salientes_tipo_check check (tipo ~ '^[a-z][a-z0-9_]{2,59}$');
 alter table public.avisos_salientes drop constraint avisos_salientes_destino_check;
 alter table public.avisos_salientes add constraint avisos_salientes_destino_check
-  check (destino in ('usuario', 'super_admin', 'cliente_dinero', 'cliente_admin'));
+  check (destino in ('usuario', 'super_admin', 'cliente_dinero', 'cliente_admin', 'cliente_aprobador'));
 alter table public.avisos_salientes add constraint avisos_destino_usuario_coherente
   check ((destino = 'usuario') = (destinatario_user_id is not null));
 alter table public.avisos_salientes drop constraint avisos_salientes_estado_check;
@@ -167,6 +168,9 @@ language sql stable security definer set search_path = '' as $$
                when 'cliente_dinero' then exists (select 1 from public.miembros m join public.empresas e on e.id = m.empresa_id
                                                    where m.user_id = p.user_id and m.empresa_id = p_empresa and e.estado = 'activa'
                                                      and m.quitado_en is null and not m.bloqueado and (m.rol = 'admin_cliente' or m.ver_dinero))
+               when 'cliente_aprobador' then exists (select 1 from public.miembros m join public.empresas e on e.id = m.empresa_id
+                                                      where m.user_id = p.user_id and m.empresa_id = p_empresa and e.estado = 'activa'
+                                                        and m.quitado_en is null and not m.bloqueado and (m.rol = 'admin_cliente' or m.aprobar))
                else false end
     ) x
 $$;
