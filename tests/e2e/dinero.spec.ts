@@ -10,7 +10,7 @@ const BASE = `http://127.0.0.1:${process.env.PW_PUERTO ?? 3100}`;
 const PDF = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n');
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
 
-test.beforeEach(async () => { await reiniciar(); });
+test.beforeEach(async () => { await reiniciar(undefined, 'dinero'); });
 
 const dinero = async () => (await fetch(`${MOCK}/__dinero`)).json();
 const saldo = (page: Page) => page.getByTestId('valor-saldo');

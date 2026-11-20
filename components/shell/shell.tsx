@@ -10,6 +10,7 @@ import { BotonTema } from '@/components/portal/boton-tema';
 import { FranjaVerComo } from '@/components/portal/ver-como';
 import { ROL_LABEL, useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { useMantenimientoActivo } from '@/components/portal/mantenimiento/usar';
 
 const PREFIJO = MODO_REAL ? '/marca/' : './marca/'; // ruta relativa en el prototipo: funciona desde cualquier carpeta
 
@@ -33,6 +34,8 @@ interface Item { to: string; label: string; icon: React.ReactNode; badge?: numbe
 
 function useNav(): Item[] {
   const s = useStore();
+  // Real: el módulo del cliente solo aparece si el super admin activó el mantenimiento (lo responde la base).
+  const mantActivo = useMantenimientoActivo(MODO_REAL && s.rol === 'admin');
   const pendientes = s.empresa.revisiones.filter((r) => r.estado === 'publicada').length;
   const ic = 'size-5';
   if (s.rol === 'super') {
@@ -63,7 +66,7 @@ function useNav(): Item[] {
   items.push({ to: '/cliente/tickets', label: 'Tickets', icon: <LifeBuoy className={ic} />, pronto: p }, { to: '/cliente/documentos', label: 'Documentos', icon: <FolderOpen className={ic} />, tambien: ['/cliente/archivos'] });
   if (s.can.esAdmin) items.push({ to: '/cliente/equipo', label: 'Mi equipo', icon: <Users className={ic} /> });
   if (p && (s.can.esAdmin || s.can.verDinero)) items.push({ to: '/cliente/facturacion', label: 'Datos de facturación', icon: <Receipt className={ic} /> });
-  if (!p && s.empresa.mantenimiento.activo) items.push({ to: '/cliente/mantenimiento', label: 'Mi plan de mantenimiento', icon: <Wrench className={ic} /> });
+  if (p ? mantActivo : s.empresa.mantenimiento.activo) items.push({ to: '/cliente/mantenimiento', label: 'Mi plan de mantenimiento', icon: <Wrench className={ic} /> });
   return items;
 }
 

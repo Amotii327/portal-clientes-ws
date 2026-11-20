@@ -25,6 +25,7 @@ export function rutaPermitida(ctx: MiContexto, ruta: string): { ok: true } | { o
     const esAdmin = ctx.rol === 'admin_cliente';
     const p = ctx.permisos;
     if (r === '/cliente/equipo' && !esAdmin) return { ok: false, texto: 'Solo el administrador de la empresa puede invitar personas y decidir qué ve cada una.' };
+    if (r === '/cliente/mantenimiento' && !esAdmin) return { ok: false, texto: 'El plan de mantenimiento lo ve el administrador de tu empresa.' };
     if ((r === '/cliente/facturacion' || r === '/cliente/dinero') && !esAdmin && !p?.ver_dinero) {
       return { ok: false, texto: 'El administrador de tu empresa decide quién ve el dinero y la facturación. Si lo necesitas, pídele que te dé acceso.' };
     }

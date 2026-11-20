@@ -141,8 +141,8 @@ test.describe('Pantallas de muestra', () => {
       await expect(page.getByText('Disponible en el próximo sprint')).toBeVisible();
     }
     // navegar entre pantallas de muestra no pierde la sesión
-    await page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: /Tickets/ }).click();
-    await expect(page).toHaveURL(/\/cliente\/tickets/);
+    await page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: /Documentos/ }).click();
+    await expect(page).toHaveURL(/\/cliente\/documentos/);
     await expect(page.getByText('Disponible en el próximo sprint')).toBeVisible();
   });
 

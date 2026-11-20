@@ -20,7 +20,7 @@ async function ambosTemas(page: Page, info: TestInfo, nombre: string) {
   await page.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
 }
 
-test.beforeEach(async () => { await reiniciar(); });
+test.beforeEach(async () => { await reiniciar(undefined, 'dinero'); });
 
 test('dinero del cliente', async ({ page }, info) => {
   await entrarCliente(page);

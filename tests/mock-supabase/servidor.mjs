@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import { FUNCIONES_S2, funcionS2, leerProyectos, sembrarProyectos } from './proyectos.mjs';
 import * as revdocs from './revdocs.mjs';
 import { NO_ES_DINERO, leerTablaDinero, rpcDinero, sembrarDinero, storageDinero } from './dinero.mjs';
+import * as TM from './tickets-mant.mjs';
 
 const PUERTO = Number(process.env.MOCK_PUERTO || 54399);
 const CLAVE = 'ClaveSegura123';
@@ -17,6 +18,7 @@ const en = (dias) => new Date(Date.now() + dias * 86400000).toISOString();
 
 let S;
 function reiniciar(perfil = 'base') {
+  S.perfil = perfil;
   const E = { A: '11111111-1111-4111-8111-111111111111', B: '22222222-2222-4222-8222-222222222222' };
   S = {
     E, empresas: [], miembros: [], perfiles: {}, usuarios: {}, invitaciones: [], facturacion: {}, preferencias: {}, config: { exigir_2fa_admin_cliente: false },
@@ -58,6 +60,7 @@ function reiniciar(perfil = 'base') {
   sembrarProyectos(S);
   revdocs.sembrar(S, perfil);
   sembrarDinero(S, E); // Módulo 4: contratos, cuotas, abonos, facturas (ver dinero.mjs)
+  TM.sembrar(S, { usuario, miembro, emp }); // tickets y mantenimiento (tests/mock-supabase/tickets-mant.mjs)
 }
 reiniciar();
 
@@ -130,7 +133,9 @@ const sinSecretos = (i) => { const { _token, ...resto } = i; return resto; };
 function leerTabla(tabla, q, params) {
   const c = ctxActivo(q); if (!c) return [];
   const esSuper = c.estado === 'super_admin'; const eid = c.empresa?.id; const admin = c.rol === 'admin_cliente';
-  const s2 = leerProyectos(S, tabla, c, filtrar, params); if (s2 !== undefined) return s2;
+  // En el perfil 'dinero' el módulo de dinero trae sus propios proyectos e hitos (ids fijos); en los demás, los del sprint 2.
+  const propioDinero = S.perfil === 'dinero' && (tabla === 'v_proyectos_resumen' || tabla === 'hitos');
+  const s2 = propioDinero ? undefined : leerProyectos(S, tabla, c, filtrar, params); if (s2 !== undefined) return s2;
   const rdFilas = revdocs.leer(S, tabla, c, params, filtrar); if (rdFilas) return rdFilas;
   if (tabla === 'perfiles') return esSuper ? filtrar(Object.values(S.perfiles), params) : [];
   if (tabla === 'empresas') return filtrar(esSuper ? S.empresas : S.empresas.filter((e) => e.id === eid), params);
@@ -144,6 +149,8 @@ function leerTabla(tabla, q, params) {
   }
   if (tabla === 'invitaciones') return filtrar(S.invitaciones.filter((i) => esSuper || (admin && i.empresa_id === eid)), params).map(sinSecretos);
   if (tabla === 'preferencias_usuario') return filtrar(Object.values(S.preferencias).filter((p) => p.user_id === c.user_id), params);
+  const tm = TM.leer(S, tabla, c);
+  if (tm) return filtrar(tm, params);
   return leerTablaDinero(S, tabla, c, params, filtrar) ?? [];
 }
 
@@ -235,7 +242,11 @@ function rpc(nombre, a, q, res) {
       if (S.supers.has(a.p_user_id)) return falla('no_se_puede_bloquear_super_admin');
       p.bloqueado = a.p_bloqueado ?? true; return null;
     }
-    default: { const r = rpcDinero(S, nombre, a, c, falla); return r === NO_ES_DINERO ? falla('datos_invalidos') : r; }
+    default: {
+      let r = TM.rpc(S, nombre, a, c, falla);
+      if (r === TM.NO_ES_MIO) r = rpcDinero(S, nombre, a, c, falla);
+      return r === NO_ES_DINERO ? falla('datos_invalidos') : r;
+    }
   }
 }
 
@@ -261,6 +272,7 @@ const servidor = http.createServer(async (req, res) => {
   S.bitacora.push({ m: req.method, ruta });
 
   // ---- control para las pruebas ----
+  if (ruta === '/__tm') return json(res, 200, TM.estado(S));
   if (ruta === '/__reset') { for (const k of Object.keys(FRENO)) delete FRENO[k]; reiniciar(url.searchParams.get('perfil') || 'base'); return json(res, 200, { ok: true }); }
   if (ruta === '/__estado') return json(res, 200, { ultimoToken: S.ultimoToken, preferencias: S.preferencias, empresas: S.empresas, miembros: S.miembros, perfiles: S.perfiles, exigir2fa: S.config.exigir_2fa_admin_cliente, invitaciones: S.invitaciones.map(sinSecretos), bitacora: S.bitacora.length, proyectos: S.proyectos, hitos: S.hitos, sprints: S.sprints, retrasos: S.retrasos, cambios: S.cambios, historial: S.historial, registro: S.registro, rechazos: S.rechazos, verComo: S.verComo, consumoP: S.consumoP, consumoS: S.consumoS, pagos: S.pagos, p1: S.p1, p2: S.p2, p3: S.p3 });
   if (ruta === '/__vaciar_proyectos') { S.proyectos = []; S.hitos = []; S.sprints = []; S.historial = []; S.retrasos = []; return json(res, 200, { ok: true }); }
@@ -273,10 +285,11 @@ const servidor = http.createServer(async (req, res) => {
   }
   if (ruta === '/__miembro') { const m = S.miembros.find((x) => x.user_id === S.usuarios[body.correo]?.id); if (m) Object.assign(m, body.campos); return json(res, 200, { ok: !!m }); }
   if (ruta === '/__revdocs') return json(res, 200, { ...S.rd, storage: Object.keys(S.rd.storage), firmas: undefined });
+  if (ruta.startsWith('/storage/v1/') && ruta.includes('/portal-tickets/')) return TM.almacenamiento(S, req, res, ruta, ctxActivo(q) ?? {});
+  if (ruta.startsWith('/storage/v1/') && storageDinero(S, req, res, url, ctxActivo(q), json)) return;
   if (ruta.startsWith('/storage/v1/') && revdocs.almacenamiento(S, req, res, url, req._raw ?? Buffer.alloc(0), body, ctxActivo(q), json, respuestaErr)) return;
   if (ruta === '/__config') { Object.assign(S.config, body); return json(res, 200, S.config); }
 
-  if (ruta.startsWith('/storage/v1/') && storageDinero(S, req, res, url, ctxActivo(q), json)) return;
   if (ruta === '/__permiso') { const { correo, ...perm } = body; const u = S.usuarios[correo]; const m = u && S.miembros.find((x) => x.user_id === u.id && !x.quitado_en); if (m) Object.assign(m, perm); return json(res, 200, { ok: !!m }); }
   if (ruta === '/__dinero') return json(res, 200, { ...S.d, rechazos: S.rechazos ?? [] });
 
@@ -365,6 +378,11 @@ const servidor = http.createServer(async (req, res) => {
         tocadas.forEach((x) => Object.assign(x, body));
       }
       return (req.headers.prefer || '').includes('return=representation') ? json(res, 200, tocadas) : (res.writeHead(204), res.end());
+    }
+    if (req.method === 'POST' && c && tabla !== 'preferencias_usuario') {
+      const r = TM.insertar(S, tabla, body, c, (cod) => dbErr(res, cod));
+      if (res.writableEnded) return;
+      if (r === true) { res.writeHead(201); return res.end(); }
     }
     if (req.method === 'POST' && tabla === 'preferencias_usuario' && c) {
       if (body.user_id !== c.user_id) return respuestaErr(res, 403, { code: '42501', message: 'permission denied', details: null, hint: null });

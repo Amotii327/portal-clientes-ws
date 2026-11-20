@@ -8,7 +8,7 @@ export const CLAVE = 'ClaveSegura123';
 export const CODIGO = '123456';
 
 /** `perfil` elige los proyectos de ejemplo: 'base' (los del sprint 2) o 'revdocs' (los de las pruebas de revisiones y documentos). */
-export async function reiniciar(config?: Record<string, unknown>, perfil: 'base' | 'revdocs' = 'base') {
+export async function reiniciar(config?: Record<string, unknown>, perfil: 'base' | 'revdocs' | 'dinero' = 'base') {
   await fetch(`${MOCK}/__reset?perfil=${perfil}`);
   if (config) await fetch(`${MOCK}/__config`, { method: 'POST', body: JSON.stringify(config) });
 }
