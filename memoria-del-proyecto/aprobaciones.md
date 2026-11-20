@@ -8,3 +8,4 @@
 | 2026-11-19 | Logo Websourcing (verde #99F100, negro #0D1015), vectorizado | Dueño | Hilo "Construir el portal de clientes" |
 | 2026-11-19 | Control 3: diseño y prototipo (temas Clara por defecto y Oscura) | Dueño (como dueño y como cliente) | Hilo "Construir el portal de clientes" |
 | 2026-11-19 | Cambio a requerimientos (v4): plan de sprints editable por el super admin | Dueño | Hilo "Construir el portal de clientes" |
+| 2026-11-19 | Plan de sprints v2 (sprints de 1 semana, producción 1 feb 2027 o antes) | Dueño | Hilo "Construir el portal de clientes" |
