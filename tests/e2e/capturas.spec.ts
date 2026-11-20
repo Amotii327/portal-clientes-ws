@@ -1,5 +1,5 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
-import { CODIGO, abrirSesion, entrar, entrarCliente, entrarSuper, reiniciar } from './ayudas';
+import { APP, CODIGO, abrirSesion, entrar, entrarCliente, entrarSuper, reiniciar } from './ayudas';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -51,7 +51,7 @@ test('activar invitación', async ({ page, browser }, info) => {
   await ambosTemas(page, info, '04-activar-crear');
   await page.goto('/activar');
   await ambosTemas(page, info, '05-activar-sin-enlace');
-  const ctx = await browser.newContext({ ...info.project.use, baseURL: 'http://127.0.0.1:3100' });
+  const ctx = await browser.newContext({ ...info.project.use, baseURL: APP });
   const p = await ctx.newPage();
   await abrirSesion(p, 'existente@cliente.test');
   await p.goto('/activar?token=tok-confirmado-777');
@@ -79,7 +79,7 @@ test('código adicional (2FA)', async ({ page }, info) => {
 
 test('estados de acceso', async ({ page, browser }, info) => {
   for (const [correo, nombre] of [['pausada@servicios.test', '10-estado-empresa-pausada'], ['quitado@cliente.test', '11-estado-quitado'], ['bloqueado@cliente.test', '12-estado-bloqueado'], ['sinmembresia@cliente.test', '13-estado-sin-activar']] as const) {
-    const ctx = await browser.newContext({ ...info.project.use, baseURL: 'http://127.0.0.1:3100' });
+    const ctx = await browser.newContext({ ...info.project.use, baseURL: APP });
     const p = await ctx.newPage();
     await abrirSesion(p, correo);
     await expect(p.locator('[data-estado-acceso]')).toBeVisible();
@@ -144,7 +144,7 @@ test('zona del super admin', async ({ page }, info) => {
   await page.getByRole('row', { name: /Equipo Uno/ }).getByRole('button', { name: 'Quitar' }).click();
   await ambosTemas(page, info, '26-admin-confirmar-quitar');
   await page.keyboard.press('Escape');
-  await page.goto('/admin/panel');
+  await page.goto('/admin/finanzas');
   await expect(page.getByText('Disponible en el próximo sprint')).toBeVisible();
   await ambosTemas(page, info, '27-admin-panel-muestra');
   expect(CODIGO).toBe('123456');

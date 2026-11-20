@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { CLAVE, abrirSesion, entrarCliente, entrarSuper, estadoMock, MOCK, reiniciar } from './ayudas';
+import { APP, CLAVE, MOCK, abrirSesion, entrarCliente, entrarSuper, estadoMock, reiniciar } from './ayudas';
 
 const A = '11111111-1111-4111-8111-111111111111';
 test.beforeEach(async () => { await reiniciar(); });
@@ -40,7 +40,7 @@ test.describe('Super admin: empresas', () => {
     await expect(page.getByText('Solo desarrollo')).toBeVisible();
     const enlace = (await page.getByTestId('enlace-dev').innerText()).trim();
     const { ultimoToken } = await estadoMock();
-    expect(enlace).toBe(`http://127.0.0.1:3100/activar?token=${ultimoToken}`);
+    expect(enlace).toBe(`${APP}/activar?token=${ultimoToken}`);
     await page.getByRole('button', { name: 'Listo' }).click();
     await expect(page.getByRole('row', { name: /Taller Nuevo S\.A\.S\..*Activa/ })).toBeVisible();
 
@@ -119,7 +119,7 @@ test.describe('Super admin: detalle de una empresa', () => {
 
     // el efecto se ve del lado de cada persona
     for (const [correo, estado] of [['equipo@cliente.test', 'miembro_bloqueado'], ['equipo-dinero@cliente.test', 'usuario_bloqueado'], ['admin@cliente.test', 'miembro_quitado']]) {
-      const ctx = await browser.newContext({ baseURL: 'http://127.0.0.1:3100' });
+      const ctx = await browser.newContext({ baseURL: APP });
       const p = await ctx.newPage();
       await abrirSesion(p, correo);
       await expect(p.locator(`[data-estado-acceso="${estado}"]`)).toBeVisible();
@@ -134,7 +134,7 @@ test.describe('Super admin: detalle de una empresa', () => {
     await fila.getByRole('button', { name: 'Desbloquear' }).click();
     await page.getByRole('button', { name: 'Sí, desbloquear' }).click();
     await expect(fila).toContainText('Activa');
-    const ctx = await browser.newContext({ baseURL: 'http://127.0.0.1:3100' });
+    const ctx = await browser.newContext({ baseURL: APP });
     const p = await ctx.newPage();
     await entrarCliente(p, 'bloqueado@cliente.test');
     await ctx.close();

@@ -36,7 +36,7 @@ test.describe('Entrar y salir', () => {
   test('admin del cliente entra, ve su empresa y cierra sesión', async ({ page }) => {
     await entrarCliente(page);
     await expect(page.getByRole('navigation', { name: 'Menú principal' }).getByText('Mi equipo')).toBeVisible();
-    await expect(page.getByText('Disponible en el próximo sprint')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Plataforma Comercial' })).toBeVisible(); // el inicio ya es real (sprint 2)
     await expect(page.getByText('Comercial Ejemplo S.A.S.').first()).toBeVisible();
     await page.getByRole('button', { name: 'Cerrar sesión' }).click();
     await expect(page).toHaveURL(/\/entrar/);

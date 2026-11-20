@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { abrirSesion, entrarCliente, estadoMock, reiniciar } from './ayudas';
+import { APP, abrirSesion, entrarCliente, estadoMock, reiniciar } from './ayudas';
 
 test.beforeEach(async () => { await reiniciar(); });
 
@@ -29,7 +29,7 @@ test.describe('Admin del cliente: Mi equipo', () => {
     await expect(page.getByText('activado.')).toBeVisible();
     await page.reload();
     await expect(page.getByTestId('miembro').filter({ hasText: 'Equipo Uno' }).getByRole('switch', { name: 'Ver contrato, pagos y facturas' })).toBeChecked();
-    const ctx = await browser.newContext({ baseURL: 'http://127.0.0.1:3100' });
+    const ctx = await browser.newContext({ baseURL: APP });
     const p = await ctx.newPage();
     await entrarCliente(p, 'equipo@cliente.test');
     await expect(p.getByRole('navigation', { name: 'Menú principal' }).getByText('Dinero', { exact: true })).toBeVisible();
@@ -56,7 +56,7 @@ test.describe('Admin del cliente: Mi equipo', () => {
     await page.getByRole('button', { name: 'Sí, quitar' }).click();
     await expect(page.getByTestId('miembro').filter({ hasText: 'Equipo Uno' })).toHaveCount(0);
     await expect(page.getByText('Salió el')).toHaveCount(2);
-    const ctx = await browser.newContext({ baseURL: 'http://127.0.0.1:3100' });
+    const ctx = await browser.newContext({ baseURL: APP });
     const p = await ctx.newPage();
     await abrirSesion(p, 'equipo@cliente.test');
     await expect(p.locator('[data-estado-acceso="miembro_quitado"]')).toBeVisible();
@@ -106,7 +106,7 @@ test.describe('Admin del cliente: cancelar invitaciones', () => {
     await expect(page.getByTestId('invitacion').filter({ hasText: 'invitado@cliente.test' })).toHaveCount(0);
     expect((await estadoMock()).invitaciones.find((i: { correo: string }) => i.correo === 'invitado@cliente.test').revocada_en).toBeTruthy();
     // el enlace cancelado ya no activa la cuenta
-    const ctx = await browser.newContext({ baseURL: 'http://127.0.0.1:3100' });
+    const ctx = await browser.newContext({ baseURL: APP });
     const p = await ctx.newPage();
     await abrirSesion(p, 'existente@cliente.test');
     await p.goto('/activar?token=tok-valido-123');
