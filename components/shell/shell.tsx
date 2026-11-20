@@ -9,6 +9,7 @@ import { cerrarSesion } from '@/lib/app/sesion';
 import { BotonTema } from '@/components/portal/boton-tema';
 import { ROL_LABEL, useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import { useMantenimientoActivo } from '@/components/portal/mantenimiento/usar';
 
 const PREFIJO = MODO_REAL ? '/marca/' : './marca/'; // ruta relativa en el prototipo: funciona desde cualquier carpeta
 
@@ -32,6 +33,8 @@ interface Item { to: string; label: string; icon: React.ReactNode; badge?: numbe
 
 function useNav(): Item[] {
   const s = useStore();
+  // Real: el módulo del cliente solo aparece si el super admin activó el mantenimiento (lo responde la base).
+  const mantActivo = useMantenimientoActivo(MODO_REAL && s.rol === 'admin');
   const pendientes = s.empresa.revisiones.filter((r) => r.estado === 'publicada').length;
   const ic = 'size-5';
   if (s.rol === 'super') {
@@ -42,8 +45,8 @@ function useNav(): Item[] {
       { to: '/admin/panel', label: 'Panel general', icon: <LayoutDashboard className={ic} />, pronto: p },
       { to: '/admin/aprobaciones', label: 'Bandeja de aprobaciones', icon: <Inbox className={ic} />, badge: p ? 0 : porRevisar, pronto: p },
       { to: '/admin/finanzas', label: 'Finanzas', icon: <Banknote className={ic} />, pronto: p },
-      { to: '/admin/tickets', label: 'Tickets de todos', icon: <LifeBuoy className={ic} />, pronto: p },
-      { to: '/admin/mantenimiento', label: 'Mantenimiento', icon: <Wrench className={ic} />, pronto: p },
+      { to: '/admin/tickets', label: 'Tickets de todos', icon: <LifeBuoy className={ic} /> },
+      { to: '/admin/mantenimiento', label: 'Mantenimiento', icon: <Wrench className={ic} /> },
       { to: '/admin/registro', label: 'Registro de actividad', icon: <Activity className={ic} />, pronto: p },
     ];
     return p ? lista : [lista[1], lista[0], ...lista.slice(2)];
@@ -54,10 +57,10 @@ function useNav(): Item[] {
     { to: '/cliente/revisiones', label: 'Revisiones', icon: <ClipboardCheck className={ic} />, badge: p ? 0 : pendientes, pronto: p },
   ];
   if (s.can.verDinero) items.push({ to: '/cliente/dinero', label: 'Dinero', icon: <Wallet className={ic} />, pronto: p });
-  items.push({ to: '/cliente/tickets', label: 'Tickets', icon: <LifeBuoy className={ic} />, pronto: p }, { to: '/cliente/documentos', label: 'Documentos', icon: <FolderOpen className={ic} />, pronto: p });
+  items.push({ to: '/cliente/tickets', label: 'Tickets', icon: <LifeBuoy className={ic} /> }, { to: '/cliente/documentos', label: 'Documentos', icon: <FolderOpen className={ic} />, pronto: p });
   if (s.can.esAdmin) items.push({ to: '/cliente/equipo', label: 'Mi equipo', icon: <Users className={ic} /> });
   if (p && (s.can.esAdmin || s.can.verDinero)) items.push({ to: '/cliente/facturacion', label: 'Datos de facturación', icon: <Receipt className={ic} /> });
-  if (!p && s.empresa.mantenimiento.activo) items.push({ to: '/cliente/mantenimiento', label: 'Mi plan de mantenimiento', icon: <Wrench className={ic} /> });
+  if (p ? mantActivo : s.empresa.mantenimiento.activo) items.push({ to: '/cliente/mantenimiento', label: 'Mi plan de mantenimiento', icon: <Wrench className={ic} /> });
   return items;
 }
 
