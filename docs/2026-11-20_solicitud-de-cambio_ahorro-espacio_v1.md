@@ -12,4 +12,4 @@
 | Impacto en otras funciones | Tickets (adjuntos), Documentos y Archivos de la empresa, Dinero (comprobantes) y copia diaria (D-015). |
 | Valor | $0 (proyecto interno) |
 
-**Decisión del dueño (interna):** incluir (pedido por el dueño, 2026-11-20) · archivo externo: pendiente
+**Decisión del dueño (interna):** incluir (pedido por el dueño, 2026-11-20) · archivo externo: VPS de Hostinger (D-021)
