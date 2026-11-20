@@ -24,8 +24,10 @@ Una **revisión** es un entregable (el diseño del proyecto, un sprint o un docu
 ```ts
 c.from('revisiones').select('*').eq('proyecto_id', id).order('actualizado_en', { ascending: false });
 c.from('revision_versiones').select('*').eq('revision_id', rid).order('version');   // solo las publicadas
-c.from('aprobaciones').select('*').eq('revision_id', rid).order('version');        // sin IP ni usuario; trae `persona`
+c.from('v_aprobaciones').select('id,revision_id,version,decision,comentario,captura_path,persona,creado_en').eq('revision_id', rid).order('version');   // sin IP ni usuario; trae `persona`
 ```
+**Nunca use `select('*')` sobre la tabla `aprobaciones`**: la IP y el usuario están ocultos y falla con 42501. Lea siempre la vista `v_aprobaciones` (misma empresa, mismas reglas).
+
 Las que esperan al cliente son `estado = 'publicada'` (úselas para el aviso "tienes algo por aprobar"). **Botones "Apruebo" y "Pido cambios"**: muéstrelos si `estado = 'publicada'`, pero **la base decide**: si responde `sin_permiso_aprobar`, diga que pida el permiso a su administrador (el permiso está en `miContexto().permisos.aprobar`). Para "Pido cambios": comentario obligatorio y captura opcional:
 ```ts
 const cap = archivo ? await reservarYSubir(c, 'captura', empresaId, archivo) : null;   // PNG/JPG/WEBP, máx. 10 MB
@@ -107,14 +109,15 @@ Siguen valiendo `no_autorizado`, `ver_como_solo_lectura`, `proyecto_no_encontrad
 ## 6. Ambigüedades y la lectura que tomé
 
 1. **Una revisión por entregable, con versiones.** Un diseño por proyecto y una revisión por sprint; las rondas nuevas son versiones, no revisiones nuevas. El tipo `documento` revisa un documento ya publicado y no toca el avance.
-2. **"Terminado" atado a la aprobación.** El sprint 2 dejó que el super admin moviera hitos y sprints a mano. Para no romper lo ya aprobado y probado, el candado funciona **solo cuando ya hay una revisión sin aprobar** de ese sprint o del diseño. Hay un interruptor en `configuracion('revisiones')` (`exigir_aprobacion_para_terminar`), **apagado por ahora**: encendido, el hito 5 y los sprints no se terminan a mano nunca. Recomiendo encenderlo cuando el dueño confirme que todos los proyectos usan revisiones (es una decisión suya).
+2. **"Terminado" atado a la aprobación (ya encendido).** El interruptor `exigir_aprobacion_para_terminar` viene **encendido**: el hito 5 (diseño) y los sprints solo se terminan cuando el cliente aprueba su revisión. `editar_sprint` y `editar_hito` no pueden deshacer una aprobación (error `reabrir_requiere_revision`); solo `reabrir_revision` (con motivo, queda en el historial). Los tests de sprint 2 que terminaban a mano usan ahora `tests.permitir_terminar()`.
+2b. **2FA del admin del cliente (D-014) ya encendido**: `seguridad.exigir_2fa_admin_cliente = true`.
 3. **Hito del diseño = hito 5** ("Diseño y prototipo"). Sprints = hito 6 (derivado, ya existente).
 4. **Quién aprueba.** Quien tenga `aprobar` (el admin lo tiene siempre). El super admin no aprueba en nombre del cliente; si el dueño es además miembro de su propia empresa (D-006) aprueba como miembro, fuera de "ver como".
 5. **"Esperando a Websourcing"** en la bandeja = borradores por publicar + reabiertas. Añadí una cuarta lista, "esperando al cliente" (publicadas), por si la pantalla la quiere.
 6. **Visibilidad.** No existe una columna "ver documentos" en `miembros` (son cuatro permisos). Por eso "ver cada documento" se resuelve por documento: `todo_el_equipo` lo ve cualquier miembro activo; `solo_admin`, solo el admin; `personas`, el admin y los elegidos.
 7. **Archivos de la empresa**: todos los miembros activos los ven; suben el admin y quien tenga `subir_archivos`. Borrar es **borrado suave** (queda el rastro para Websourcing) y el objeto de Storage se quita con la sesión del usuario.
 8. **Capturas de "pido cambios"** van en un bucket propio (`capturas-revisiones`, imágenes, 10 MB).
-9. **Tipos permitidos**: imágenes (PNG, JPG, GIF, WEBP), PDF, video (MP4, MOV, WEBM), audio, Office moderno (docx, xlsx, pptx, sin macros), CSV, TXT y ZIP. **Quedaron fuera SVG** (puede llevar scripts) **y .doc/.xls/.ppt antiguos** (admiten macros). Si el dueño quiere SVG o formatos viejos, se decide aparte.
+9. **Tipos permitidos**: imágenes (PNG, JPG, GIF, WEBP), PDF, video (MP4, MOV, WEBM), audio, Office moderno (docx, xlsx, pptx, sin macros), CSV, TXT y ZIP. **Lecturas aceptadas por el dueño: tipo `documento` (1), cuatro listas en la bandeja (5) y sin formatos Office antiguos. Quedaron fuera SVG** (puede llevar scripts) **y .doc/.xls/.ppt antiguos** (admiten macros). Si el dueño quiere SVG o formatos viejos, se decide aparte.
 10. **Quitar un sprint con revisión**: `quitar_sprint` (sprint 2) falla con un error de llave (23503) si el sprint ya tiene revisión. La pantalla debe esconder "quitar" cuando hay revisión; no cambié la función del sprint 2.
 
 ## 7. Lo que falta o no se probó

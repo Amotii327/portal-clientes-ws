@@ -68,3 +68,8 @@ select o.bucket_id, o.name, o.created_at
 - No se ejecutó nada: sin VPS ni claves S3 no se pudo probar contra Supabase real. Se probó solo la sintaxis (`bash -n`).
 - DevOps confirma: región del VPS y de Supabase, espacio en disco (retención de 30 días del histórico), y que el plan de Supabase permite claves S3 de solo lectura.
 - Si el volumen crece, evaluar copias incrementales de la base y de archivos al mismo tiempo para que ambas queden coherentes.
+
+## Correcciones de Calidad (M-1 y M-2)
+
+- **Retención desde que entra al histórico:** se borran las carpetas `historico/AAAA-MM-DD` con más de 30 días según el nombre de la carpeta (el día en que el archivo desapareció o cambió), no según la fecha del archivo. Un archivo viejo que el cliente borra hoy se conserva 30 días desde hoy.
+- **Freno:** antes de sincronizar se compara origen y copia. Si el origen aparece vacío o pierde más del 20 % de archivos o de peso (`UMBRAL_CAIDA_PCT`), el script falla y avisa sin tocar nada. Solo se salta con `FORZAR_REDUCCION=1` y con aprobación del dueño.

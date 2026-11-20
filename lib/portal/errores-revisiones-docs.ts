@@ -21,6 +21,7 @@ const MENSAJES: Record<string, string> = {
   sin_permiso_aprobar: 'Tu administrador no te ha dado permiso para aprobar. Pídeselo.',
   cambios_requiere_comentario: 'Cuéntanos qué hay que cambiar (mínimo 5 caracteres).',
   terminado_requiere_aprobacion: 'Este hito o sprint solo se da por terminado cuando el cliente aprueba su revisión.',
+  reabrir_requiere_revision: 'Una aprobación solo se deshace reabriendo la revisión, con un motivo.',
   sprint_no_revisable: 'El sprint aún es una propuesta: aprueba el plan antes de revisarlo.',
   sprint_ya_terminado: 'Ese sprint ya está terminado.',
   hito_ya_terminado: 'El hito de diseño ya está terminado. Reábrelo antes de publicar otra revisión.',

@@ -30,3 +30,11 @@ begin
   perform public.crear_proyecto(tests.id('empresa_b'), 'Portal B', null, null, null);
   perform tests.admin();
 end $$;
+
+-- Sprint 3: "terminado" de sprints y del hito 5 solo lo da la aprobacion del cliente. Las pruebas del sprint 2
+-- que terminan a mano usan esta ayuda: enciende, dentro de la transaccion de la prueba, la misma marca que
+-- enciende responder_revision. (Un usuario de la API no puede poner esa marca.)
+create function tests.permitir_terminar() returns void language plpgsql as $$
+begin
+  perform set_config('portal.aprobacion_cliente', 'on', true);
+end $$;
