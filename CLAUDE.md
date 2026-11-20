@@ -56,7 +56,7 @@ Quien construye no se revisa a sí mismo. QA y seguridad revisa siempre lo que h
 - Guardar claves, contraseñas, tokens o accesos en el repositorio, en la memoria o en documentos. Van en el gestor de secretos del alojamiento.
 - Publicar en producción sin el punto de control 5.
 - Enviar algo al cliente sin que el dueño lo haya visto.
-- Usar Vercel. El alojamiento está por definir.
+- Usar Vercel. El alojamiento es el VPS de Hostinger (D-010).
 - Usar datos o archivos de un cliente en el proyecto de otro.
 - Borrar datos de producción o hacer cambios irreversibles sin aprobación escrita del dueño.
 - Saltarse, desactivar o borrar pruebas para que algo "pase".
@@ -72,7 +72,7 @@ Siempre partimos de la misma base, como un restaurante que compra los mismos ing
 | Código y revisiones | GitHub (un repositorio por cliente, creado desde `fabrica-base`) |
 | Pruebas automáticas | Playwright |
 | Diseño de marca, brochures y presentaciones | Figma |
-| Alojamiento | Por definir (no Vercel) |
+| Alojamiento | VPS de Hostinger con Coolify (D-010). No Vercel |
 | Pagos | Pasarela local para pesos, Stripe para dólares |
 | Voz (solo si se necesita) | ElevenLabs |
 
