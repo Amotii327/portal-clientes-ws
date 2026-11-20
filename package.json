@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:servidor": "NEXT_OUTPUT=server next build",
+    "start": "NEXT_OUTPUT=server next start",
+    "test:db": "bash scripts/test-db.sh",
     "postbuild": "node scripts/relativizar.mjs",
     "lint": "tsc --noEmit"
   },
@@ -13,6 +16,8 @@
     "@radix-ui/react-dialog": "^1.3.1",
     "@radix-ui/react-slot": "^1.5.0",
     "@radix-ui/react-switch": "^1.4.1",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.119.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.76.0",
