@@ -1,0 +1,35 @@
+name: Base de datos
+
+# En ramas de trabajo: prueba en seco (muestra qué cambiaría, no aplica nada).
+# En main: aplica las migraciones al proyecto de Supabase.
+on:
+  push:
+    paths:
+      - "supabase/**"
+      - ".github/workflows/base-de-datos.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: base-de-datos
+  cancel-in-progress: false
+
+jobs:
+  migraciones:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: icinxatqxbpdvssdecke
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Conectar con el proyecto
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+      - name: Prueba en seco
+        if: github.ref != 'refs/heads/main'
+        run: supabase db push --dry-run --password "$SUPABASE_DB_PASSWORD"
+      - name: Aplicar migraciones
+        if: github.ref == 'refs/heads/main'
+        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
