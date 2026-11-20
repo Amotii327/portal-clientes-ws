@@ -3,11 +3,8 @@
 -- Las reglas RLS van en 000500 y las funciones de escritura (RPC) en 000600 y 000700.
 -- Equipo Websourcing · Desarrollo
 --
--- COORDINACION: tickets.proyecto_id NO tiene llave foranea todavia (la tabla `proyectos` la crea otro
--- backend). Al integrar se agrega:
---   alter table public.tickets add constraint tickets_proyecto_misma_empresa
---     foreign key (proyecto_id, empresa_id) references public.proyectos (id, empresa_id);
--- (y lo mismo para garantias.proyecto_id). Mientras tanto crear_ticket rechaza un proyecto que no pueda validar.
+-- proyecto_id: llave foranea compuesta (proyecto_id, empresa_id) -> proyectos (id, empresa_id), asi un ticket o
+-- una garantia de la empresa A nunca apunta a un proyecto de la B.
 
 create function private.claves_parametros_mantenimiento() returns text[]
 language sql immutable set search_path = '' as $$
@@ -196,7 +193,7 @@ create table public.bolsa_avisos (
 create table public.garantias (
   id          uuid primary key default gen_random_uuid(),
   empresa_id  uuid not null references public.empresas (id),
-  proyecto_id uuid,                       -- sin FK hasta integrar `proyectos` (ver cabecera)
+  proyecto_id uuid,
   inicia_en   date not null,
   vence_en    date not null,
   nota        text check (nota is null or char_length(nota) <= 500),
@@ -204,7 +201,8 @@ create table public.garantias (
   creado_en   timestamptz not null default now(),
   actualizado_en timestamptz not null default now(),
   constraint garantias_fechas_coherentes check (vence_en >= inicia_en and vence_en <= inicia_en + 366),
-  constraint garantias_empresa_id_unico unique (empresa_id, id)
+  constraint garantias_empresa_id_unico unique (empresa_id, id),
+  constraint garantias_proyecto_misma_empresa foreign key (proyecto_id, empresa_id) references public.proyectos (id, empresa_id)
 );
 create index garantias_empresa_idx on public.garantias (empresa_id, vence_en desc);
 
@@ -215,7 +213,7 @@ create table public.tickets (
   id                       uuid primary key default gen_random_uuid(),
   empresa_id               uuid not null references public.empresas (id),
   numero                   integer not null,                    -- consecutivo por empresa (lo pone un trigger)
-  proyecto_id              uuid,                                -- sin FK hasta integrar `proyectos`
+  proyecto_id              uuid,
   tipo                     text not null check (tipo in ('error', 'solicitud_cambio', 'pregunta', 'acceso')),
   tipo_original            text check (tipo_original in ('error', 'solicitud_cambio', 'pregunta', 'acceso')),
   titulo                   text not null check (char_length(btrim(titulo)) between 3 and 160),
@@ -256,6 +254,7 @@ create table public.tickets (
   actualizado_en           timestamptz not null default now(),
   constraint tickets_empresa_id_unico unique (empresa_id, id),
   constraint tickets_numero_unico unique (empresa_id, numero),
+  constraint tickets_proyecto_misma_empresa foreign key (proyecto_id, empresa_id) references public.proyectos (id, empresa_id),
   constraint tickets_miembro_misma_empresa foreign key (empresa_id, miembro_id) references public.miembros (empresa_id, id),
   constraint tickets_cambio_no_es_fuera_de_plan check (not (tipo = 'solicitud_cambio' and fuera_de_plan)),
   constraint tickets_fuera_de_plan_coherente check (fuera_de_plan = (motivo_fuera_de_plan is not null)),
@@ -272,7 +271,7 @@ create table public.tickets (
     and not (cobro_aceptado_en is not null and cobro_rechazado_en is not null)),
   constraint tickets_calificacion_coherente check ((calificacion is null) = (calificado_en is null)
                                                    and (calificacion is null or estado = 'cerrado')),
-  constraint tickets_clasificado_con_prioridad check (estado = 'nuevo' or prioridad is not null)
+  constraint tickets_clasificado_con_prioridad check (estado in ('nuevo', 'cerrado') or prioridad is not null)
 );
 create index tickets_empresa_estado_idx on public.tickets (empresa_id, estado, creado_en desc);
 create index tickets_creado_por_idx on public.tickets (empresa_id, creado_por);

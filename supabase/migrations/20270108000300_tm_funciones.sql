@@ -181,9 +181,10 @@ end $$;
 -- Autorizado para trabajar = regalado, o cobrado y aceptado por el admin del cliente.
 create function private.ticket_autorizado(t public.tickets) returns boolean
 language sql immutable set search_path = '' as $$
-  select not (t.tipo = 'solicitud_cambio' or t.fuera_de_plan)
+  select coalesce(
+    not (t.tipo = 'solicitud_cambio' or t.fuera_de_plan)
       or t.decision_dueno = 'regalar'
-      or (t.decision_dueno = 'cobrar' and t.cobro_aceptado_en is not null)
+      or (t.decision_dueno = 'cobrar' and t.cobro_aceptado_en is not null), false)
 $$;
 
 -- ---------- Bolsa de horas ----------
@@ -233,6 +234,8 @@ begin
   if not found then raise exception 'plan_no_encontrado' using errcode = 'P0001'; end if;
   begin
     v := jsonb_populate_record(v_old, p_parametros);
+    -- Sin auditoria no hay frecuencia de auditoria (al pasar de un plan con auditoria a uno sin ella).
+    if not v.auditoria then v.auditoria_cada_meses := null; end if;
     if not exists (select 1 from pg_timezone_names z where z.name = v.zona_horaria) then
       raise exception 'zona_invalida' using errcode = '22023';
     end if;

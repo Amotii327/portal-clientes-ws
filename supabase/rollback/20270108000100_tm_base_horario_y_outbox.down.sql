@@ -7,4 +7,3 @@ drop function if exists private.semaforo_umbral_amarillo();
 drop function if exists private.minutos_habiles_entre(timestamptz, timestamptz, int[], time, time, text);
 drop function if exists private.sumar_minutos_habiles(timestamptz, numeric, int[], time, time, text);
 drop function if exists private.proximo_inicio_habil(timestamp, int[], time, time);
-drop function if exists private.hoy();

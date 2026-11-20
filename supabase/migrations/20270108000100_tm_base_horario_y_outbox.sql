@@ -2,11 +2,7 @@
 -- Equipo Websourcing · Desarrollo
 -- Hora de Colombia siempre (America/Bogota). Sin festivos (D-002).
 
--- Fecha de hoy en Colombia.
-create function private.hoy() returns date
-language sql stable set search_path = '' as $$
-  select (now() at time zone 'America/Bogota')::date
-$$;
+-- (private.hoy(), la fecha de hoy en Colombia, ya la define la migracion de proyectos.)
 
 -- Si t cae fuera del horario, devuelve la proxima apertura; si cae dentro, devuelve t.
 -- p_dias usa el dia ISO (1 = lunes ... 7 = domingo). Todo en hora local (timestamp sin zona).
@@ -161,7 +157,7 @@ begin
 end $$;
 
 revoke all on function
-  private.hoy(), private.proximo_inicio_habil(timestamp, int[], time, time),
+  private.proximo_inicio_habil(timestamp, int[], time, time),
   private.sumar_minutos_habiles(timestamptz, numeric, int[], time, time, text),
   private.minutos_habiles_entre(timestamptz, timestamptz, int[], time, time, text),
   private.semaforo_umbral_amarillo(),

@@ -158,3 +158,15 @@ begin
   $p$;
   -- Sin politicas de UPDATE ni DELETE: nadie cambia ni borra archivos desde la API.
 end $$;
+
+-- ---------- Cerradura de solo lectura del modo "ver como" (regla del sprint 2) en las tablas nuevas ----------
+do $$
+declare t text;
+begin
+  foreach t in array array['tickets', 'ticket_mensajes', 'ticket_adjuntos', 'garantias', 'planes_base_mantenimiento',
+      'planes_mantenimiento', 'planes_mantenimiento_historial', 'bolsa_mensual', 'bolsa_avisos', 'horas_registradas',
+      'horas_notas_internas', 'outbox_correos'] loop
+    execute format('create trigger ver_como_solo_lectura before insert or update or delete or truncate on public.%I
+                    for each statement execute function private.bloquear_escritura_ver_como()', t);
+  end loop;
+end $$;

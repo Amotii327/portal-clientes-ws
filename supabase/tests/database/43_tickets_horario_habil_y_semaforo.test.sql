@@ -2,7 +2,7 @@
 -- hora Colombia, sin festivos), tiempos por defecto (D-003), tiempos del plan de mantenimiento y semaforo.
 -- 2027-01-08 es viernes; 2027-01-11 es lunes. Hora de Colombia = UTC-5.
 begin;
-select plan(70);
+select plan(65);
 \ir ../local/fixtures.sql
 \ir ../local/fixtures_tickets.sql
 

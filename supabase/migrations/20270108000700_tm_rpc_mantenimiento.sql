@@ -17,6 +17,7 @@ declare
   v_base jsonb := '{}'::jsonb;
   v_mezcla jsonb;
   v_id uuid;
+  v_existe boolean;
 begin
   if not private.es_super_admin() then raise exception 'no_autorizado' using errcode = '42501'; end if;
   if not exists (select 1 from public.empresas e where e.id = p_empresa_id) then
@@ -31,14 +32,15 @@ begin
   end if;
   if p_motivo is not null and char_length(p_motivo) > 500 then raise exception 'datos_invalidos' using errcode = '22023'; end if;
   select * into v_plan from public.planes_mantenimiento p where p.empresa_id = p_empresa_id for update;
-  if found and v_plan.activo then raise exception 'mantenimiento_ya_activo' using errcode = 'P0001'; end if;
+  v_existe := found;
+  if v_existe and v_plan.activo then raise exception 'mantenimiento_ya_activo' using errcode = 'P0001'; end if;
 
   if p_plan_base <> 'personalizado' then
     select b.parametros into v_base from public.planes_base_mantenimiento b where b.plan = p_plan_base;
   end if;
   v_mezcla := coalesce(v_base, '{}'::jsonb) || p_parametros || jsonb_build_object('plan_base', p_plan_base);
 
-  if not found then
+  if not v_existe then
     insert into public.planes_mantenimiento (empresa_id) values (p_empresa_id) returning id into v_id;
   else
     v_id := v_plan.id;

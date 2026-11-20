@@ -10,7 +10,6 @@ returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
   m public.miembros := private.miembro_activo();
   t public.tickets;
-  v_ok boolean;
 begin
   if m.id is null then raise exception 'no_autorizado' using errcode = '42501'; end if;
   if p_tipo is null or p_tipo not in ('error', 'solicitud_cambio', 'pregunta', 'acceso')
@@ -19,14 +18,9 @@ begin
      or p_detalle is null or char_length(btrim(p_detalle)) not between 1 and 10000 then
     raise exception 'datos_invalidos' using errcode = '22023';
   end if;
-  if p_proyecto_id is not null then
-    -- Hasta que `proyectos` exista no se puede comprobar que sea de la empresa: se rechaza.
-    if to_regclass('public.proyectos') is null then
-      raise exception 'proyecto_no_disponible' using errcode = 'P0001';
-    end if;
-    execute 'select exists (select 1 from public.proyectos x where x.id = $1 and x.empresa_id = $2)'
-      into v_ok using p_proyecto_id, m.empresa_id;
-    if not v_ok then raise exception 'proyecto_no_disponible' using errcode = 'P0001'; end if;
+  if p_proyecto_id is not null and not exists (
+       select 1 from public.proyectos x where x.id = p_proyecto_id and x.empresa_id = m.empresa_id) then
+    raise exception 'proyecto_no_disponible' using errcode = 'P0001';
   end if;
   insert into public.tickets (empresa_id, miembro_id, proyecto_id, tipo, titulo, detalle, prioridad_propuesta)
   values (m.empresa_id, m.id, p_proyecto_id, p_tipo, btrim(p_titulo), btrim(p_detalle), p_prioridad)

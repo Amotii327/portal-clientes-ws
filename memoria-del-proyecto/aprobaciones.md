@@ -11,3 +11,4 @@
 | 2026-11-19 | Plan de sprints v2 (sprints de 1 semana, producción 1 feb 2027 o antes) | Dueño | Hilo "Construir el portal de clientes" |
 | 2026-11-20 | Control 4: demo del sprint 1 (acta docs/2026-11-20_acta_sprint-1_v1.md) | Dueño (como dueño y como cliente) | Hilo "Construir el portal de clientes" |
 | 2026-11-20 | Seguir con el desarrollo sin VPS; las demos van por capturas hasta que el VPS esté listo | Dueño | Hilo "Construir el portal de clientes" |
+| 2026-11-20 | Terminar todo el desarrollo hoy (sprints 2 a 6 comprimidos, una sola demo final); solo queda pendiente el VPS | Dueño | Hilo "Construir el portal de clientes" |
