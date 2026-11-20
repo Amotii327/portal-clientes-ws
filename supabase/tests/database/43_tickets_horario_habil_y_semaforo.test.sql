@@ -88,7 +88,7 @@ select cmp_ok((select minutos_habiles_restantes from public.tickets_semaforo whe
 select lives_ok(format($$select public.activar_mantenimiento(%L, 'premium', %L)$$, tests.id('empresa_a'),
   jsonb_build_object('cuota_mensual', 1500000, 'fecha_inicio', :'inicio')), 'activar el plan premium de A');
 select lives_ok(format($$select public.activar_mantenimiento(%L, 'personalizado', %L)$$, tests.id('empresa_b'),
-  jsonb_build_object('cuota_mensual', 300000, 'fecha_inicio', :'inicio', 'dias_atencion', array[1,2,3,4,5,6],
+  jsonb_build_object('cuota_mensual', 300000, 'horas_mes', 5, 'fecha_inicio', :'inicio', 'dias_atencion', array[1,2,3,4,5,6],
                      'horario_desde', '07:00', 'horario_hasta', '12:00', 'tiempos_respuesta', jsonb_build_object('urgente', jsonb_build_object('horas_habiles', 1)))),
   'activar un plan personalizado de B con horario propio (lunes a sabado, 7 a 12)');
 select tests.admin();

@@ -2,7 +2,7 @@
 -- aviso del 80 % y del 100 % con historial, horas extra con aprobacion del cliente, y corte mensual:
 -- las horas no usadas se pierden salvo "acumular" por cliente (D-007).
 begin;
-select plan(67);
+select plan(71);
 \ir ../local/fixtures.sql
 \ir ../local/fixtures_tickets.sql
 
@@ -33,7 +33,11 @@ select tests.como(tests.id('sa'), 'aal2');
 select ok(tests.error_es(format($$select public.anotar_horas_ticket(%L, 0)$$, :'t1'), 'datos_invalidos'), 'cero horas no vale');
 select ok(tests.error_es(format($$select public.anotar_horas_ticket(%L, 25)$$, :'t1'), 'datos_invalidos'), 'mas de 24 horas en un registro no vale');
 select ok(tests.error_es(format($$select public.anotar_horas_ticket(%L, 1, null, current_date + 3)$$, :'t1'), 'fecha_invalida'), 'no se anotan horas del futuro');
-select ok(tests.error_es(format($$select public.anotar_horas_ticket(%L, 1)$$, :'t_cambio'), 'ticket_fuera_de_bolsa'), 'una solicitud de cambio se cobra aparte: no descuenta de la bolsa');
+select public.anotar_horas_ticket(:'t_cambio', 1) ->> 'estado' as x \gset
+select is((select sin_descuento from public.horas_registradas where ticket_id = :'t_cambio'), true, 'horas de una solicitud de cambio: quedan anotadas para costo, marcadas sin descuento');
+select id as h_cambio from public.horas_registradas where ticket_id = :'t_cambio' \gset
+select is(public.revisar_horas(:'h_cambio', true) ->> 'horas_en_bolsa', '0', 'al aprobarlas no tocan la bolsa');
+select is((select horas_usadas from public.bolsa_mensual where id = :'bolsa_a'), 0.00::numeric, 'la bolsa de A sigue en 0 tras aprobar horas de un cambio');
 select ok(tests.error_es(format($$select public.anotar_horas_ticket(%L, 1)$$, :'tc'), 'mantenimiento_no_activo'), 'una empresa sin plan activo no tiene bolsa');
 select public.anotar_horas_ticket(:'t1', 3, 'Revise logs y reinicie el servicio') ->> 'estado' as est \gset
 select is(:'est'::text, 'pendiente_dueno', 'las horas anotadas quedan pendientes de revision del dueno');
@@ -41,7 +45,7 @@ select id as h1 from public.horas_registradas where ticket_id = :'t1' and horas 
 select is((select horas_usadas from public.bolsa_mensual where id = :'bolsa_a'), 0.00::numeric, 'todavia no se descuentan de la bolsa');
 select is((select nota from public.horas_notas_internas where hora_id = :'h1'), 'Revise logs y reinicie el servicio', 'la nota interna queda aparte');
 select tests.como(tests.id('admin_a'));
-select is(tests.contar('select 1 from public.horas_registradas'), 0::bigint, 'el cliente no ve horas pendientes');
+select is(tests.contar('select 1 from public.horas_registradas where estado = ''pendiente_dueno'''), 0::bigint, 'el cliente no ve horas pendientes');
 select is((select horas_usadas from public.bolsa_mensual_resumen), 0.00::numeric, 'el cliente ve 0 horas usadas');
 select tests.como(tests.id('sa'), 'aal2');
 
@@ -129,7 +133,12 @@ insert into public.bolsa_mensual (empresa_id, plan_id, mes, horas_incluidas)
   select empresa_id, id, (:'mes_actual'::date - interval '1 month')::date, 5 from public.planes_mantenimiento where empresa_id = tests.id('empresa_c');
 
 -- ---------- Corte del mes 1 ----------
-select is((private.cerrar_mes_bolsas(:'corte1') ->> 'bolsas_cerradas')::int, 2, 'el corte cierra las bolsas de A y B (la empresa pausada se salta)');
+select is((private.cerrar_mes_bolsas(:'corte1') ->> 'bolsas_cerradas')::int, 1, 'I-2: el corte espera la bolsa de A (tiene horas pendientes) y cierra la de B');
+select is((select cerrada_en is null from public.bolsa_mensual where id = :'bolsa_a'), true, 'I-2: la bolsa de A sigue abierta hasta que el dueno revise');
+select tests.como(tests.id('sa'), 'aal2');
+select is(public.revisar_horas(:'h_pend', true) ->> 'estado', 'extra_aprobada', 'I-2: el dueno aun puede revisar las horas del mes que termino (se imputan a su bolsa)');
+select tests.admin();
+select is((private.cerrar_mes_bolsas(:'corte1') ->> 'bolsas_cerradas')::int, 1, 'I-2: revisadas las horas, el siguiente corte cierra la bolsa de A');
 select is((select horas_perdidas || '/' || horas_acumuladas from public.bolsa_mensual where id = :'bolsa_a'), '0.00/0.00', 'A: la bolsa estaba llena: nada que perder');
 select is((select horas_perdidas || '/' || horas_acumuladas from public.bolsa_mensual where id = :'bolsa_b'), '0.00/6.00', 'B (acumula): 6 horas sin usar pasan al mes siguiente');
 select is((select horas_arrastradas || '/' || horas_incluidas from public.bolsa_mensual where empresa_id = tests.id('empresa_b') and mes = :'corte1'::date - 1 + 1 - extract(day from :'corte1'::date)::int + 1 + 0), '6.00/10.00', 'la bolsa del mes siguiente de B trae 6 arrastradas y sus 10 horas');
@@ -138,7 +147,6 @@ select is((private.cerrar_mes_bolsas(:'corte1') ->> 'bolsas_cerradas')::int, 0, 
 select is((select count(*)::int from public.bolsa_mensual where empresa_id = tests.id('empresa_a')), 2, 'y no duplica las bolsas del mes siguiente');
 select is((select count(*)::int from public.registro_actividad where accion = 'bolsa_cerrada' and actor_tipo = 'sistema'), 2, 'el corte queda en el registro como "sistema"');
 select tests.como(tests.id('sa'), 'aal2');
-select ok(tests.error_es(format($$select public.revisar_horas(%L, true)$$, :'h_pend'), 'bolsa_cerrada'), 'unas horas pendientes de un mes ya cerrado no se descuentan en silencio');
 select ok(tests.error_es(format($$select public.anotar_horas_ticket(%L, 1, null, %L)$$, :'t1', private.hoy()), 'bolsa_cerrada'), 'no se anotan horas en un mes cerrado');
 select tests.admin();
 
