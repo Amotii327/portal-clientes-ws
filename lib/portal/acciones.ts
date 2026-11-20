@@ -79,3 +79,13 @@ export const anotarRechazo = (c: Cliente, accion: string, codigo: string) =>
 export const fijarConsumoProyecto = (c: Cliente, a: Args<'fijar_consumo_proyecto'>) => c.rpc('fijar_consumo_proyecto', a);
 export const anotarConsumoSprint = (c: Cliente, a: Args<'anotar_consumo_sprint'>) => c.rpc('anotar_consumo_sprint', a);
 export const consumoEquipo = (c: Cliente, proyectoId: string) => c.rpc('consumo_equipo', { p_proyecto_id: proyectoId });
+
+// ---------------------------------------------------------------------------------------------
+// Integración (sprints 3 a 6): un solo punto de entrada. Cada módulo conserva su archivo, porque las pantallas ya
+// lo importan; aquí se re-exporta todo para poder importar solo desde '@/lib/portal/acciones'.
+// ---------------------------------------------------------------------------------------------
+export * from './acciones-revisiones-docs';
+export * from './acciones-dinero';
+export * from './acciones-tickets';
+export * from './acciones-mantenimiento';
+export * from './acciones-espacio';

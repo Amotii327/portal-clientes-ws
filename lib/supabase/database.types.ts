@@ -317,13 +317,14 @@ export interface PanelSuperAdmin {
   totales: {
     empresas_activas: number; empresas_pausadas: number; proyectos_activos: number; hitos_atrasados: number;
     planes_por_aprobar: number; demos_proximas_7_dias: number;
-    /** null = el modulo aun no existe (dinero: sprint 4; tickets: sprint 5). */
-    pagos_vencidos: number | null; tickets_abiertos: number | null;
+    /** Cuotas vencidas, comprobantes por revisar y tickets abiertos (no cerrados): todos numeros desde la integracion. */
+    pagos_vencidos: number; comprobantes_en_revision: number; tickets_abiertos: number;
   };
   proyectos: ResumenProyecto[];
   atencion: ItemAtencion[];
 }
 export type ItemAtencion =
+  | ItemAtencionPagoVencido | ItemAtencionComprobante
   | { tipo: 'hito_atrasado'; prioridad: '1'; empresa_id: string; empresa_nombre: string; proyecto_id: string; proyecto_nombre: string;
       hito_numero: number; hito_nombre: string; fecha_planeada: string; dias_de_atraso: number; esperando_al_cliente: boolean }
   | { tipo: 'plan_por_aprobar'; prioridad: '2'; empresa_id: string; empresa_nombre: string; proyecto_id: string; proyecto_nombre: string }
@@ -333,6 +334,12 @@ export interface InicioCliente {
   empresa: { id: string; nombre: string };
   proyectos: ResumenProyecto[];
   pendientes_del_cliente: { proyecto_id: string; hito_numero: number; hito_nombre: string; fecha_nueva: string; motivo: string; que_falta: string }[];
+  /** Cuotas vencidas, cuota más próxima y comprobantes en revisión: null si quien llama no tiene "ver dinero". */
+  pagos_vencidos: number | null;
+  proximo_pago: InicioClienteDinero['proximo_pago'];
+  comprobantes_en_revision: number | null;
+  /** Tickets no cerrados que esa persona puede ver. */
+  tickets_abiertos: number;
 }
 
 export interface HitoLineaDeTiempo {
@@ -615,11 +622,16 @@ export interface InicioClienteDinero {
   proximo_pago: { pago_id: string; proyecto_id: string; concepto: string; pendiente: number; moneda: Moneda; vence_el: string; estado: EstadoPago } | null;
 }
 
-/** Cola de avisos (tabla avisos_salientes). Forma genérica para que tickets y mantenimiento usen la misma. */
+/**
+ * Cola UNICA de avisos por correo (tabla avisos_salientes). Solo ids, tipo y referencia: nunca texto libre del cliente
+ * ni correos (se resuelven al enviar). La lee el super admin y la vacia el despachador (lib/servidor/avisos).
+ */
+export type DestinoAviso = 'usuario' | 'super_admin' | 'cliente_dinero' | 'cliente_admin';
+export type EstadoAviso = 'pendiente' | 'enviando' | 'pendiente_sin_proveedor' | 'enviado' | 'fallido' | 'cancelado';
 export interface AvisoSaliente {
-  id: string; empresa_id: string; modulo: string; tipo: string; destino: 'super_admin' | 'cliente_dinero' | 'cliente_admin';
+  id: string; empresa_id: string; modulo: string; tipo: string; destino: DestinoAviso; destinatario_user_id: string | null;
   referencia_id: string | null; clave_unica: string; datos: Record<string, unknown>; programado_para: string;
-  estado: 'pendiente' | 'enviado' | 'fallido' | 'cancelado'; intentos: number; enviado_en: string | null; ultimo_error: string | null; creado_en: string;
+  estado: EstadoAviso; intentos: number; enviado_en: string | null; ultimo_error: string | null; reclamado_hasta: string | null; creado_en: string;
 }
 
 // ---- Argumentos de las funciones (los montos como texto para no pasar por float) ----
@@ -770,3 +782,24 @@ export interface FuncionesTicketsMant {
   autorizar_horas_extra: Fn<{ p_bolsa_id: string }>;
   mi_mantenimiento_activo: Fn<Record<string, never>, boolean>;
 }
+
+// =====================================================================================
+// Solicitud de cambio 5 · ahorro de espacio (integración).
+// =====================================================================================
+export type EstadoEspacio = 'ok' | 'aviso' | 'lleno';
+export interface EspacioDeEmpresa {
+  empresa_id: string; usado_bytes: number; cupo_bytes: number; porcentaje: number; estado: EstadoEspacio;
+}
+export interface EspacioPorEmpresa {
+  empresa_id: string; nombre: string; usado_bytes: number; cupo_bytes: number; porcentaje: number;
+}
+export interface EnlaceVideoTicket { id: string; empresa_id: string; ticket_id: string; mensaje_id: string | null; subido_por: string; url: string; creado_en: string }
+export type EstadoArchivoArchivado = 'marcado' | 'trasladado' | 'borrado_de_supabase' | 'recuperacion_pedida' | 'recuperado' | 'error';
+export interface ArchivoArchivado {
+  id: string; empresa_id: string; proyecto_id: string | null;
+  origen_tabla: 'documento_versiones' | 'archivos_cliente' | 'ticket_adjuntos'; origen_id: string;
+  bucket_id: string; storage_path: string; nombre_original: string; tamano_bytes: number;
+  estado: EstadoArchivoArchivado; ubicacion_externa: string | null; marcado_en: string; trasladado_en: string | null;
+  borrado_supabase_en: string | null; recuperacion_pedida_en: string | null; recuperado_en: string | null;
+}
+/** Panel e inicio: `tickets_abiertos` = tickets no cerrados; `comprobantes_en_revision` solo con "ver dinero". */
