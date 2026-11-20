@@ -51,6 +51,10 @@ aplicar_todo() {
 
 psql_ postgres -c "create database prueba" >/dev/null
 psql_ prueba -f "$RAIZ/supabase/tests/local/mock_supabase.sql" >/dev/null
+# Mocks adicionales (p. ej. esquema storage). Se cargan despues del mock base y tampoco se despliegan.
+for f in "$RAIZ"/supabase/tests/local/mock_extra_*.sql; do
+  [ -e "$f" ] && psql_ prueba -f "$f" >/dev/null
+done
 echo "== Aplicando migraciones"
 aplicar_todo
 

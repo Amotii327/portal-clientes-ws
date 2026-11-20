@@ -1,0 +1,12 @@
+drop function if exists public.calificar_ticket(uuid, integer, text);
+drop function if exists public.confirmar_resolucion(uuid);
+drop function if exists public.rechazar_cobro_ticket(uuid);
+drop function if exists public.aceptar_cobro_ticket(uuid);
+drop function if exists public.decidir_ticket(uuid, text, text, numeric, text);
+drop function if exists public.marcar_solicitud_cambio(uuid, text);
+drop function if exists public.cambiar_estado_ticket(uuid, text, text);
+drop function if exists public.clasificar_ticket(uuid, text, text);
+drop function if exists public.preparar_adjunto_ticket(uuid, text, text, bigint, uuid);
+drop function if exists public.retirar_texto_mensaje(uuid);
+drop function if exists public.responder_ticket(uuid, text, boolean, text);
+drop function if exists public.crear_ticket(text, text, text, text, uuid);
