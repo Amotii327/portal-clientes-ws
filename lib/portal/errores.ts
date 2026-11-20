@@ -14,6 +14,8 @@ const MENSAJES: Record<string, string> = {
   empresa_ya_pausada: 'La empresa ya estaba pausada.',
   empresa_ya_activa: 'La empresa ya estaba activa.',
   correo_ya_es_miembro: 'Esa persona ya hace parte de tu equipo.',
+  invitacion_no_pendiente: 'Esa invitación ya fue usada o cancelada.',
+  cuenta_frenada_temporalmente: 'Demasiados intentos fallidos. Espera 15 minutos e intenta de nuevo.',
   correo_no_invitable: 'No podemos invitar a ese correo.',
   invitacion_invalida: 'Este enlace de invitación no es válido o ya venció. Pide que te envíen uno nuevo.',
   correo_sin_confirmar: 'Primero confirma tu correo con el mensaje que te enviamos.',

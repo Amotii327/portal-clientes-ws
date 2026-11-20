@@ -75,7 +75,7 @@ select is(tests.contar($$select 1 from public.perfiles where user_id <> auth.uid
 select tests.anonimo();
 select throws_ok('select 1 from public.empresas', '42501', null, 'anonimo: sin permiso sobre empresas');
 select throws_ok('select 1 from public.miembros', '42501', null, 'anonimo: sin permiso sobre miembros');
-select throws_ok('select public.mi_contexto()', '42501', null, 'anonimo: no ejecuta funciones del portal');
+select is(public.mi_contexto() ->> 'estado', 'sin_sesion', 'anonimo: mi_contexto solo responde sin_sesion');
 
 select * from finish();
 rollback;

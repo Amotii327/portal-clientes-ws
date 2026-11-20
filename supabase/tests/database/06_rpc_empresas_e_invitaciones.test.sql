@@ -46,7 +46,7 @@ select throws_ok(format($$select public.aceptar_invitacion(%L, 'v1', 'Anonimo')$
 
 -- El invitado correcto, con IP en la cabecera del proxy
 select tests.como('00000000-0000-0000-0000-0000000000e1');
-select set_config('request.headers', '{"x-forwarded-for": "203.0.113.7, 10.0.0.1"}', true) is not null as _ \gset
+select set_config('request.headers', '{"x-forwarded-for": "10.0.0.1, 203.0.113.7"}', true) is not null as _ \gset
 select throws_ok(format($$select public.aceptar_invitacion(%L, 'v0-vieja', 'Gerente Nuevo')$$, :'tok_nueva'::text), 'P0001', 'politica_version_invalida', 'aceptar: exige aceptar la version vigente de la politica');
 select throws_ok(format($$select public.aceptar_invitacion(%L, 'v1', ' ')$$, :'tok_nueva'::text), '22023', 'datos_invalidos', 'aceptar: exige un nombre');
 select is(public.aceptar_invitacion(:'tok_nueva'::text, 'v1', 'Gerente Nuevo', '3001234567') ->> 'rol', 'admin_cliente', 'aceptar: el invitado entra como admin del cliente');
@@ -69,8 +69,8 @@ select public.invitar_miembro(tests.id('empresa_a'), 'Nuevo.Equipo@empresa-a.tes
 select matches(:'tok_eq1'::text, '^[0-9a-f]{64}$', 'invitar: el admin del cliente invita a su equipo');
 select throws_ok($$select public.invitar_miembro(tests.id('empresa_a'), 'otro.admin@empresa-a.test', 'admin_cliente')$$, '42501', 'no_autorizado', 'invitar: el admin del cliente NO invita a otro admin');
 select throws_ok($$select public.invitar_miembro(tests.id('empresa_a'), 'equipo.a@empresa-a.test')$$, 'P0001', 'correo_ya_es_miembro', 'invitar: avisa si ya es de su equipo');
-select throws_ok($$select public.invitar_miembro(tests.id('empresa_a'), 'admin.b@empresa-b.test')$$, 'P0001', 'correo_no_invitable', 'invitar: no revela miembros de otras empresas');
-select throws_ok($$select public.invitar_miembro(tests.id('empresa_a'), 'dueno@websourcing.test')$$, 'P0001', 'correo_no_invitable', 'invitar: nunca a un super admin');
+select lives_ok($$select public.invitar_miembro(tests.id('empresa_a'), 'admin.b@empresa-b.test')$$, 'invitar: no revela miembros de otras empresas (el rechazo ocurre al activar)');
+select lives_ok($$select public.invitar_miembro(tests.id('empresa_a'), 'dueno@websourcing.test')$$, 'invitar: tampoco revela al super admin (nunca podra activarla)');
 select throws_ok($$select public.invitar_miembro(tests.id('empresa_a'), 'basura')$$, '22023', 'correo_invalido', 'invitar: valida el correo');
 -- Reinvitar reemplaza la pendiente
 select public.invitar_miembro(tests.id('empresa_a'), 'nuevo.equipo@empresa-a.test') ->> 'token' as tok_eq2 \gset

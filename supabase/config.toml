@@ -66,3 +66,10 @@ verify_enabled = true
 [auth.hook.before_user_created]
 enabled = true
 uri = "pg-functions://postgres/private/gancho_antes_de_crear_usuario"
+
+# Bloqueo a los 5 intentos fallidos / 15 minutos (migracion 000700). El gancho de verificacion de
+# contrasena exige plan Pro: se enciende al pasar a Pro. Plan B si no esta disponible: ver la nota
+# para Frontend (docs/2026-11-23_nota_backend-para-frontend_v1.md, seccion 4).
+[auth.hook.password_verification_attempt]
+enabled = false
+uri = "pg-functions://postgres/private/gancho_intento_de_acceso"

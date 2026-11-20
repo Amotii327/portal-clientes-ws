@@ -106,9 +106,10 @@ export interface Database {
         Returns: ResultadoInvitacion;
       };
       aceptar_invitacion: {
-        Args: { p_token: string; p_version_politica: string; p_nombre?: string | null; p_celular?: string | null; p_ip?: string | null };
+        Args: { p_token: string; p_version_politica: string; p_nombre?: string | null; p_celular?: string | null };
         Returns: { empresa_id: string; miembro_id: string; rol: Rol };
       };
+      revocar_invitacion: { Args: { p_invitacion_id: string }; Returns: undefined };
       quitar_miembro: { Args: { p_miembro_id: string }; Returns: undefined };
       bloquear_miembro: { Args: { p_miembro_id: string; p_bloqueado?: boolean }; Returns: undefined };
       pausar_empresa: { Args: { p_empresa_id: string; p_motivo?: string | null }; Returns: undefined };

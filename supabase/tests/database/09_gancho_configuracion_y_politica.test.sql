@@ -21,7 +21,7 @@ insert into public.invitaciones (empresa_id, correo, rol, token_hash, creada_en,
   (tests.id('empresa_a'), 'vencida@x.co', 'equipo', repeat('6', 64), now() - interval '6 days', now() - interval '1 day');
 select isnt(tests.gancho('vencida@x.co'), '{}'::jsonb, 'registro con invitacion vencida: rechazado');
 delete from public.super_admins;
-select is(tests.gancho('primero@websourcing.test'), '{}'::jsonb, 'mientras no exista ningun super admin se permite crear el primero');
+select isnt(tests.gancho('primero@websourcing.test'), '{}'::jsonb, 'sin super admins el registro sigue cerrado (el primero se crea a mano)');
 
 -- ---------- Configuracion inicial ----------
 select is((select count(*)::int from public.configuracion where clave in ('marca', 'horario_habil', 'tiempos_respuesta', 'politica_datos', 'seguridad')), 5, 'configuracion inicial cargada');

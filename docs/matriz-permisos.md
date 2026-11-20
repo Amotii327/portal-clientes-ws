@@ -27,7 +27,7 @@ Como las llaves de un edificio: cada fila es una puerta (tabla) y cada columna e
 | | Admin cliente | La suya | No | La suya (mismas 3 columnas) | No |
 | | Equipo | La suya, **solo con `ver_dinero`** | No | No | No |
 | `perfiles` | Super admin | Todos | No (se crea al aceptar la invitación, RPC `aceptar_invitacion`) | No (solo bloqueo global con RPC `bloquear_usuario`) | No |
-| | Admin cliente | El suyo y los de quienes tienen o tuvieron fila en su empresa | No | Solo el suyo: `nombre`, `celular` | No |
+| | Admin cliente | El suyo y los de quienes están activos en su empresa (o salieron y no están activos en otra, para conservar el historial) | No | Solo el suyo: `nombre`, `celular` | No |
 | | Equipo | Solo el suyo | No | Solo el suyo: `nombre`, `celular` | No |
 | `super_admins` | Todos | **No** (sin acceso desde la API) | **No** (solo directo en la base) | **No** | **No** |
 | `miembros` | Super admin | Todos | RPC `aceptar_invitacion` | Permisos de cualquier "equipo"; quitar/bloquear con RPC | No |
@@ -40,8 +40,9 @@ Como las llaves de un edificio: cada fila es una puerta (tabla) y cada columna e
 | | Admin cliente / Equipo | Solo las propias | No | **No** | No |
 | `registro_actividad` | Super admin | Todo | **No** (solo triggers) | **No** (solo se agrega) | **No** |
 | | Admin cliente / Equipo | **No** (el cliente verá su historial por una vista aparte, sprint 2) | No | No | No |
-| `configuracion` | Super admin | Toda | Sí | Sí (`valor`) | No |
+| `configuracion` | Super admin | Toda | Sí | Sí (`valor`); un trigger valida la forma de cada clave (ausente o inválido en `exigir_2fa_admin_cliente` cuenta como 2FA exigido) | No |
 | | Admin cliente / Equipo | Toda (solo lectura) | No | No | No |
+| `intentos_acceso` | Todos | **No** (sin acceso desde la API; solo la usa el gancho de Auth) | **No** | **No** | **No** |
 | `preferencias_usuario` (tema) | Cualquiera con acceso | Solo la propia | Solo la propia (`tema`: clara u oscura) | Solo la propia | No |
 
 Reglas transversales (aplican a todas las tablas con `empresa_id`):
@@ -60,13 +61,14 @@ Todas corren con la sesión del usuario, validan lo que entra y dejan rastro en 
 | Función | Quién puede | Qué hace |
 |---|---|---|
 | `crear_empresa(nombre, razon_social, nit, correo_facturas, correo_admin, logo_path?)` | Solo super admin (2FA) | Crea empresa + facturación + invitación del primer admin. Devuelve el token **una sola vez** |
-| `invitar_miembro(empresa_id, correo, rol?, aprobar?, ver_dinero?, ver_todos_tickets?, subir_archivos?)` | Super admin (cualquier rol y empresa) · Admin cliente (solo `equipo`, solo su empresa) | Crea la invitación (7 días, un solo uso). Si ya había una pendiente, la reemplaza |
-| `aceptar_invitacion(token, version_politica, nombre?, celular?, ip?)` | Usuario autenticado con correo confirmado, igual al invitado | Crea perfil (si no existe) y membresía, marca la invitación usada, guarda la aceptación de la política (versión, fecha, IP) |
+| `invitar_miembro(empresa_id, correo, rol?, aprobar?, ver_dinero?, ver_todos_tickets?, subir_archivos?)` | Super admin (cualquier rol y empresa) · Admin cliente (solo `equipo`, solo su empresa) | Crea la invitación (7 días, un solo uso). Si ya había una pendiente, la reemplaza. Al admin del cliente no se le revela si el correo es de un super admin o de otra empresa: el rechazo ocurre al activarla. Solo el super admin recibe `correo_no_invitable` |
+| `revocar_invitacion(invitacion_id)` | Super admin · Admin cliente (solo invitaciones de rol `equipo` de su empresa) | Cancela una invitación pendiente. Al quitar o bloquear a quien invitó, sus invitaciones pendientes se revocan solas |
+| `aceptar_invitacion(token, version_politica, nombre?, celular?)` | Usuario autenticado con correo confirmado, igual al invitado | Crea perfil (si no existe) y membresía, marca la invitación usada, guarda la aceptación de la política (versión, fecha, IP). La IP la pone la base, nunca el usuario; es dato de apoyo, no prueba única, hasta verificarla con Supabase real (toma el salto de confianza contando desde la derecha de `X-Forwarded-For`, configurable en `configuracion('red')`) |
 | `quitar_miembro(miembro_id)` | Super admin · Admin cliente (solo "equipo" de su empresa, nunca a sí mismo) | Marca `quitado_en`, cierra sus sesiones, conserva el historial |
 | `bloquear_miembro(miembro_id, bloqueado?)` | Igual que quitar | Bloquea o desbloquea; al bloquear cierra sesiones |
 | `pausar_empresa(empresa_id, motivo?)` / `reactivar_empresa(empresa_id)` | Solo super admin (2FA) | Pausa (cierra sesiones de todos sus usuarios) o reactiva. No borra nada |
 | `bloquear_usuario(user_id, bloqueado?)` | Solo super admin (2FA) | Bloqueo global del perfil. Nunca a un super admin |
-| `mi_contexto()` | Usuario autenticado | Estado del propio usuario para decidir a qué pantalla va |
+| `mi_contexto()` | Cualquiera (el visitante recibe `sin_sesion`) | Estado del propio usuario para decidir a qué pantalla va |
 | `politica_vigente()` | Cualquiera, incluso sin sesión | Versión vigente de la política de datos |
 
 ## Pendiente de ampliar

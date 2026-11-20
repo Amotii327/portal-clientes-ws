@@ -11,15 +11,15 @@ select is_empty(
 
 -- 2. Las 10 tablas del sprint 1 existen.
 select is((select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
-            where n.nspname = 'public' and c.relkind = 'r'), 10, 'hay 10 tablas en public (sprint 1)');
+            where n.nspname = 'public' and c.relkind = 'r'), 11, 'hay 11 tablas en public (sprint 1)');
 
 -- 3. Toda tabla con RLS tiene politicas, salvo super_admins (cerrada a proposito).
 select is_empty(
   $$select c.relname::text from pg_class c join pg_namespace n on n.oid = c.relnamespace
-     where n.nspname = 'public' and c.relkind = 'r' and c.relname <> 'super_admins'
+     where n.nspname = 'public' and c.relkind = 'r' and c.relname not in ('super_admins', 'intentos_acceso')
        and not exists (select 1 from pg_policies p where p.schemaname = 'public' and p.tablename = c.relname)$$,
-  'toda tabla (salvo super_admins) tiene politicas');
-select is((select count(*)::int from pg_policies where tablename = 'super_admins'), 0, 'super_admins no tiene politicas: invisible desde la API');
+  'toda tabla (salvo super_admins e intentos_acceso) tiene politicas');
+select is((select count(*)::int from pg_policies where tablename in ('super_admins', 'intentos_acceso')), 0, 'super_admins e intentos_acceso no tienen politicas: invisibles desde la API');
 
 -- 4. Politicas de escritura siempre con WITH CHECK.
 select is_empty(
@@ -77,8 +77,8 @@ select is_empty(
 select is_empty(
   $$select n.nspname || '.' || p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname in ('public', 'private') and has_function_privilege('anon', p.oid, 'execute')
-       and p.proname <> 'politica_vigente'$$,
-  'anon solo puede ejecutar politica_vigente()');
+       and p.proname not in ('politica_vigente', 'mi_contexto')$$,
+  'anon solo puede ejecutar politica_vigente() y mi_contexto()');
 select ok(not has_schema_privilege('anon', 'private', 'usage'), 'anon no entra al esquema private');
 select ok(not has_function_privilege('authenticated', 'private.registrar(uuid,text,text,text,jsonb)', 'execute'),
   'authenticated no puede escribir en el registro por su cuenta');

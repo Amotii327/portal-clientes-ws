@@ -19,6 +19,7 @@ export const politicaVigente = (c: Cliente) => c.rpc('politica_vigente');
 export const crearEmpresa = (c: Cliente, a: Database['public']['Functions']['crear_empresa']['Args']) => c.rpc('crear_empresa', a);
 export const invitarMiembro = (c: Cliente, a: Database['public']['Functions']['invitar_miembro']['Args']) => c.rpc('invitar_miembro', a);
 export const aceptarInvitacion = (c: Cliente, a: Database['public']['Functions']['aceptar_invitacion']['Args']) => c.rpc('aceptar_invitacion', a);
+export const revocarInvitacion = (c: Cliente, invitacionId: string) => c.rpc('revocar_invitacion', { p_invitacion_id: invitacionId });
 export const quitarMiembro = (c: Cliente, miembroId: string) => c.rpc('quitar_miembro', { p_miembro_id: miembroId });
 export const bloquearMiembro = (c: Cliente, miembroId: string, bloqueado = true) =>
   c.rpc('bloquear_miembro', { p_miembro_id: miembroId, p_bloqueado: bloqueado });

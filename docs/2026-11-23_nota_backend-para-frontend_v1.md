@@ -24,7 +24,7 @@ Qué quedó listo en el servidor y qué debe usar cada pantalla. Las reglas de q
 
 | `estado` | Qué mostrar |
 |---|---|
-| `sin_sesion` | Pantalla de entrar |
+| `sin_sesion` | Pantalla de entrar (`miContexto()` también responde esto a un visitante sin sesión) |
 | `sin_perfil` / `sin_membresia` | "Tu cuenta aún no está activada": llevar a activar con el enlace de la invitación |
 | `super_admin_requiere_2fa` | Pedir el código del celular (ver 2FA abajo) |
 | `requiere_2fa` | Igual, pero para el admin del cliente (solo cuando se encienda `seguridad.exigir_2fa_admin_cliente`, antes de producción) |
@@ -38,7 +38,7 @@ Un usuario quitado, bloqueado o de empresa pausada pierde el acceso **en la sigu
 **Activar cuenta (historia 1 del módulo 1)**
 1. El enlace del correo lleva el token: `/activar?token=...`. Mostrar el texto de la política con `politicaVigente()` (sirve sin sesión).
 2. `supabase.auth.signUp({ email, password, options: { emailRedirectTo: <misma URL /activar?token=...> } })`. Solo se puede registrar el correo que tiene una invitación vigente (gancho de Auth). Contraseña mínima de 10 caracteres.
-3. Con el correo ya confirmado y la sesión abierta: `aceptarInvitacion(cliente, { p_token, p_version_politica, p_nombre, p_celular })`. La versión sale de `politicaVigente()`; la persona debe marcar "acepto" antes. Errores esperados: `invitacion_invalida`, `correo_sin_confirmar`, `politica_version_invalida`, `ya_es_miembro`, `usuario_bloqueado`, `empresa_no_disponible`.
+3. Con el correo ya confirmado y la sesión abierta: `aceptarInvitacion(cliente, { p_token, p_version_politica, p_nombre, p_celular })` (ya no recibe IP: la pone la base). La versión sale de `politicaVigente()`; la persona debe marcar "acepto" antes. Errores esperados: `invitacion_invalida`, `correo_sin_confirmar`, `politica_version_invalida`, `ya_es_miembro`, `usuario_bloqueado`, `empresa_no_disponible`.
 4. Después `miContexto()` y a la pantalla de inicio.
 
 **Zona super admin**
@@ -50,7 +50,7 @@ Un usuario quitado, bloqueado o de empresa pausada pierde el acceso **en la sigu
 **Zona del cliente, "Mi equipo" (solo admin del cliente)**
 - Lista: `from('miembros').select('id, rol, aprobar, ver_dinero, ver_todos_tickets, subir_archivos, bloqueado, quitado_en, perfiles(nombre, correo)')`. Incluye quitados (historial); filtre `quitado_en is null` para los activos.
 - Invitaciones pendientes: `from('invitaciones').select('id, correo, rol, vence_en, usada_en, revocada_en')`. **No use `select('*')`**: `token_hash` no se puede leer y fallaría.
-- Invitar: `invitarMiembro(...)`. Quitar/bloquear: `quitarMiembro(id)`, `bloquearMiembro(id, true|false)`.
+- Invitar: `invitarMiembro(...)`. Cancelar una pendiente: `revocarInvitacion(id)`. Quitar/bloquear: `quitarMiembro(id)`, `bloquearMiembro(id, true|false)`.
 - Cambiar permisos: `from('miembros').update({ ver_dinero: true }).eq('id', id)` (solo esas 4 columnas; el rol no se cambia).
 - Facturación: `from('datos_facturacion').update({ razon_social, nit, correo_facturas })`.
 
@@ -67,6 +67,6 @@ Un usuario quitado, bloqueado o de empresa pausada pierde el acceso **en la sigu
 
 ## 4. Lo que falta y no está en el sprint 1 (para que nadie lo dé por hecho)
 
-- **Bloqueo a los 5 intentos fallidos / 15 minutos.** Supabase Auth solo trae límite de peticiones por IP. Hay que decidir: gancho `password_verification_attempt` (requiere plan Pro) o control en el servidor. No está implementado.
+- **Bloqueo a los 5 intentos fallidos / 15 minutos.** La lógica está hecha y probada en la base (`private.gancho_intento_de_acceso`, tabla `intentos_acceso`, parámetros en `configuracion('intentos_acceso')`). Falta **encender** el gancho `password_verification_attempt` en el panel de Supabase al pasar a Pro (en `config.toml` está apagado). El mensaje de rechazo llega como `cuenta_frenada_temporalmente` (ya está en `mensajeDeError`). **Plan B** si el gancho no estuviera disponible: la acción de servidor `entrar` cuenta los fallos por correo en su propio almacén (por ejemplo una tabla accesible solo desde el servidor con un rol dedicado, nunca la llave de sistema abierta) y rechaza antes de llamar a `signInWithPassword`; es más débil porque el atacante puede llamar a Auth directo, por eso se recomienda el gancho.
 - Recuperar contraseña y plantillas de correo con el dominio de Websourcing: son de Auth + Resend (configuración, no código nuestro).
 - Pantallas, formularios y el envío real de correos.
