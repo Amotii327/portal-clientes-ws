@@ -128,3 +128,216 @@ Lectura (respetan RLS, no usan permisos especiales): `panel_super_admin()` (solo
 ## Pendiente de ampliar
 
 Sprint 3: `revisiones`, `aprobaciones`, `documentos`, `documento_versiones`, `documento_permisos`, `archivos_cliente` y las reglas de Storage (cada tabla nueva debe llevar el trigger `ver_como_solo_lectura`). Sprint 4: dinero. Sprint 5: tickets. Sprint 6: mantenimiento.
+
+## Módulo 3 (Revisiones y documentos, sprint 3)
+
+**Equipo Websourcing · Desarrollo** · v1 · 2026-12-11. Complementa `docs/matriz-permisos.md` (sprints 1 y 2, que no se toca aquí; quien integre las ramas funde las dos). Fuente de las reglas RLS (`supabase/migrations/20261211000300_revdocs_rls.sql` y `..._storage.sql`) y de las pruebas `supabase/tests/database/20_` a `25_`.
+
+Se lee igual que la matriz principal: cada fila es una puerta y cada columna, quién tiene llave. Las reglas generales no cambian: el super admin solo cuenta con 2FA (`aal2`) y sin sesión "ver como"; los permisos se leen de la base en cada consulta; quitado, bloqueado, empresa pausada o visitante no tienen acceso a nada.
+
+**Todas las tablas nuevas son de solo lectura desde la API.** No hay política de INSERT, UPDATE ni DELETE para nadie: toda escritura pasa por las funciones de la segunda parte, que validan quién llama.
+
+### Tablas
+
+| Tabla | Rol | Leer | Escribir |
+|---|---|---|---|
+| `revisiones` | Super admin | Todas, también los borradores | Solo con funciones |
+| | Admin cliente / Equipo | Las de **su** empresa, **sin borradores**. Todos los miembros activos las ven (el equipo, por defecto, ve avance y revisiones) | No |
+| `revision_versiones` | Super admin | Todas, también el borrador de una versión | Solo con funciones. Una versión publicada ya no cambia ni se borra (trigger) |
+| | Admin / Equipo | Solo las **publicadas** de revisiones que ven | No |
+| `v_aprobaciones` (vista para leer) | Cliente y super admin, de su empresa | Sin IP, usuario ni user-agent; usar esta vista, no `select *` de la tabla |
+| `aprobaciones` | Super admin | Todas (columnas públicas; la evidencia está en el registro) | **Nadie**: solo se agrega con `responder_revision` (trigger: ni cambio ni borrado ni truncado, para ningún rol) |
+| | Admin / Equipo | Las de su empresa, **sin** `ip`, `user_id` ni `user_agent` (permiso de columna) | No |
+| `documentos` | Super admin | Todos | Funciones |
+| | Admin cliente | Todos los de su empresa, cualquiera sea la visibilidad | No |
+| | Equipo | `todo_el_equipo`, y los `personas` donde Websourcing lo eligió (y no se le revocó) | No |
+| `documento_versiones` | Super admin | Todas | Solo se agrega (`crear_documento`, `confirmar_version_documento`). Ni cambio ni borrado |
+| | Admin / Equipo | Las de los documentos que pueden ver (la regla de `documentos` se aplica a la subconsulta) | No |
+| `documento_permisos` | Super admin | Todos | `fijar_visibilidad_documento` (revocar = marcar `revocado_en`, no se borra) |
+| | Admin cliente | Los de su empresa | No |
+| | Equipo | Solo su propia fila | No |
+| `archivos_cliente` | Super admin | Todos, incluidos los borrados (rastro) | `marcar_archivo_recibido` |
+| | Admin / Equipo | Los de **su** empresa que no estén borrados (todos los miembros los ven; solo los suben quienes tienen "subir archivos") | `confirmar_archivo_cliente`, `borrar_archivo_cliente` |
+| `subidas_reservadas` | Cualquiera con acceso | Solo las **suyas** | `reservar_subida` |
+
+### Funciones
+
+| Función | Quién | Qué hace / reglas |
+|---|---|---|
+| `crear_revision(proyecto, tipo, titulo, sprint?, documento?, link?, video?, acta?, resumen?)` | Super admin | Crea el borrador v1. Un diseño por proyecto y una revisión por sprint (las rondas son versiones). `https` obligatorio en enlaces. El acta debe ser un documento categoría `acta` de la misma empresa |
+| `editar_borrador_revision(...)` | Super admin | Cambia el borrador de la versión; una publicada no se toca. Texto vacío borra |
+| `publicar_revision(revision)` | Super admin | Publica la versión (el cliente la ve). Ata al avance: sprint `en_revision`, hito 5 (diseño) `esperando_aprobacion`. Exige link o video (salvo tipo documento) |
+| `nueva_version_revision(revision)` | Super admin | Con cambios pedidos o reabierta: abre el borrador de la versión siguiente |
+| `reabrir_revision(revision, motivo)` | Super admin | Solo una aprobada, con motivo (queda en el historial del cliente). Deshace la atadura: sprint y hito 5 vuelven a `en_curso`, el hito pierde su fecha real |
+| `responder_revision(revision, version, decision, comentario?, captura?)` | Miembro **real** con permiso `aprobar` (el admin lo tiene) | `apruebo` o `pido_cambios` (comentario ≥ 5 caracteres; captura opcional). Guarda quién, cuándo, IP y navegador (`private.ip_cliente()`). Solo sobre la versión vigente. Aprobar termina el sprint o el hito 5; pedir cambios los devuelve a `en_curso`. No se deshace desde el portal |
+| `bandeja_revisiones(empresa?)` | Super admin | Cuatro listas: aprobado, cambios_pedidos, esperando_a_websourcing (borradores y reabiertas), esperando_al_cliente. Filtro por cliente |
+| `reservar_subida(destino, empresa, nombre, mime, tamano)` | `documento`: super admin · `archivo_cliente`: admin o "subir archivos" · `captura`: "aprobar" | Valida permiso, tipo y tamaño y devuelve la ruta generada por el servidor. Tope de 60 reservas por hora por persona |
+| `confirmar_archivo_cliente(reserva, nota?, proyecto?)` | Miembro real con "subir archivos" | Mide el archivo en Storage (tamaño y tipo reales), lo registra con fecha, quién y nota |
+| `borrar_archivo_cliente(archivo)` | Quien lo subió | Solo si está `nuevo`. Borrado suave; devuelve la ruta para quitarlo de Storage |
+| `marcar_archivo_recibido(archivo)` | Super admin | `nuevo` → `recibido`: queda fijo |
+| `crear_documento(...)`, `confirmar_version_documento(...)`, `fijar_visibilidad_documento(...)` | Super admin | Documento con su primera versión; versiones nuevas (v2, v3…); cambiar quién lo ve |
+| `anotar_descarga(tipo, id)` | Quien ya puede ver la fila | Deja la descarga en el registro (con autor e IP). INVOKER: si no ve la fila, no anota |
+
+**Nadie aprueba en nombre del cliente.** El super admin que no es miembro de la empresa recibe `no_autorizado`. Si es a la vez miembro de su propia empresa (D-006: el dueño es cliente de sí mismo), puede aprobar **como ese miembro**, pero nunca durante una sesión "ver como", y el historial lo registra como del cliente.
+
+### Storage (`storage.objects`)
+
+| Bucket | Qué guarda | Tope y tipos | Leer | Subir | Borrar |
+|---|---|---|---|---|---|
+| `documentos` | Lo que publica Websourcing | 50 MB; imágenes, PDF, video, audio, Office sin macros, CSV, TXT, ZIP | Quien ya puede ver la versión del documento (misma regla que la tabla). Super admin: todo | Solo super admin con reserva vigente | Nadie desde la API |
+| `archivos-empresa` | Lo que sube el cliente | Igual | Su empresa y super admin (regla de `archivos_cliente`) | Admin o "subir archivos" con reserva vigente | Solo quien lo subió, tras `borrar_archivo_cliente` y mientras no esté `recibido` |
+| `capturas-revisiones` | Capturas de "pido cambios" | 10 MB; PNG, JPG, WEBP | Quien ve la aprobación | Con permiso "aprobar" y reserva | Nadie |
+
+Reglas comunes: buckets **privados**; ruta `empresa_id/carpeta/uuid.ext` generada por el servidor; la regla de subida exige una **reserva a nombre de la persona**, vigente (30 min), sin usar, en la empresa de la ruta y con el permiso del destino (se vuelve a leer en cada subida); **no hay regla de UPDATE** (nadie pisa un archivo); un visitante, un miembro quitado/bloqueado, una empresa pausada y el super admin sin 2FA no leen ni suben nada. En "ver como", se lee lo que vería el cliente y no se sube.
+
+Excluidos a propósito: SVG (puede llevar scripts) y los formatos viejos de Office `.doc/.xls/.ppt` (admiten macros).
+
+### Pruebas
+
+`20_` flujo de revisiones y atadura al avance · `21_` permisos y separación por empresa de revisiones · `22_` documentos, versiones y visibilidad · `23_` archivos de la empresa · `24_` Storage por empresa · `25_` estructura, registro y límites.
+
+## Módulo 4 (Dinero, sprint 4)
+
+**Equipo Websourcing · Desarrollo** · sprint 4 · Uso interno. Complementa `docs/matriz-permisos.md` (no la reemplaza; al integrar se funden).
+
+**Regla de oro:** ver dinero exige ser **admin del cliente** o tener el permiso **`ver_dinero`**, y solo de **su** empresa. El equipo sin `ver_dinero` no ve **ninguna** fila de este módulo (ni por tabla, ni por vista, ni por función, ni por archivo). Todo se lee de la base en cada consulta. Durante "ver como el cliente" todo es de solo lectura.
+
+Roles: **SA** = super admin con 2FA (sin "ver como" abierto) · **Admin** = admin del cliente · **Eq+$** = equipo con `ver_dinero` · **Eq** = equipo sin `ver_dinero`. Sin 2FA, el super admin no tiene ningún poder. Anónimo: nada.
+
+### Tablas y vistas
+
+| Objeto | SA | Admin | Eq+$ | Eq | Escritura |
+|---|---|---|---|---|---|
+| `contratos` | Todos | El de su empresa | Idem | Nada | Solo funciones del SA |
+| `pagos_programados` (el plan) | Todas (sin la columna cruda `hito_id`: se lee por `v_pagos_programados`) | Las de su empresa | Idem | Nada | Solo funciones del SA |
+| `abonos` | Todos | Los de su empresa | Idem | Nada | Solo `crear_abono`, `confirmar_comprobante`; se anulan con `anular_abono` (nunca se editan ni se borran) |
+| `facturas` | Todas | Las de su empresa | Idem | Nada | Solo SA (`crear_factura`, `anular_factura`); nunca se editan ni se borran |
+| `comprobantes_pago` | Todos | Los de su empresa | Idem | Nada | El cliente solo por `subir_comprobante`; el SA los resuelve; nunca se borran |
+| `avisos_salientes` (cola de avisos) | Todos | Nada | Nada | Nada | Triggers y la tarea de recordatorios. La vaciará el módulo de notificaciones (sprint 6) |
+| `v_pagos_programados`, `v_contratos_saldo` | Todo | Lo de su empresa (`hito_id` null si el hito está oculto) | Idem | Vacías | No aplica (vistas `security_invoker`) |
+| `v_ingresos_por_mes`, `v_ingresos_por_cliente`, `v_ingresos_por_mes_y_cliente` | Todo | **Vacías** | **Vacías** | **Vacías** | No aplica. Ingresos es solo del super admin |
+
+Ningún rol de la aplicación tiene INSERT, UPDATE ni DELETE de tabla. `service_role` no tiene permisos de tabla (se concederán a notificaciones en el sprint 6).
+
+### Funciones
+
+| Función | Quién | Reglas clave |
+|---|---|---|
+| `crear_contrato`, `editar_contrato` | SA | Un contrato por proyecto. Moneda COP o USD. Anticipo ≤ valor. La moneda no cambia con cuotas o abonos; el valor no baja de lo programado/abonado |
+| `agregar_pago`, `editar_pago`, `quitar_pago` | SA | Las cuotas suman ≤ valor del contrato. El hito debe ser del mismo proyecto. No se baja de lo abonado. Con comprobante en revisión no se cambia valor ni fecha. Solo se quita sin movimientos |
+| `crear_abono`, `anular_abono` | SA | Un abono no pasa del saldo ni de lo que falta de su cuota. Fecha no futura. El motivo de anulación (5 a 500 letras) lo lee el cliente |
+| `crear_factura`, `anular_factura` | SA | PDF ≤ 20 MB en `<empresa>/facturas/<uuid>.pdf`. Número de factura único |
+| `subir_comprobante` | Admin, o equipo con `ver_dinero` **Y** `subir_archivos` | Cuota de **su** empresa (si no, `pago_no_encontrado`). PDF/PNG/JPG/WEBP ≤ 10 MB en `<empresa>/comprobantes/<uuid>.<ext>`. Valor ≤ lo que falta de la cuota y ≤ saldo. Un comprobante en revisión por cuota. **No crea abono** |
+| `confirmar_comprobante` | SA | Aquí nace el abono (con el valor y la fecha declarados, o los que corrija el SA). Si pasa del saldo, todo se deshace |
+| `rechazar_comprobante` | SA | Motivo obligatorio (5 a 500 letras), lo lee el cliente. **No crea abono** |
+| `dinero_del_proyecto` | SA, Admin, Eq+$ | Sin permiso: `no_autorizado` (no devuelve vacío). Proyecto ajeno: `proyecto_no_encontrado` |
+| `comprobantes_por_revisar` | SA | Bandeja de todas las empresas |
+| `anotar_descarga_factura` | SA, Admin, Eq+$ (de su empresa) | Anota la descarga (1 por minuto y persona). Quien no puede ver la factura no anota nada |
+| `generar_recordatorios_pago` | Solo `service_role` (tarea programada) | No repite avisos. Salta empresas pausadas, cuotas pagadas y con comprobante en revisión |
+| `panel_super_admin`, `inicio_cliente` | Igual que en el sprint 2 | Ahora traen dinero: ver nota de Frontend. `inicio_cliente` trae dinero solo con `ver_dinero` |
+
+### Archivos (Storage, bucket privado `dinero`)
+
+Ruta siempre `<empresa_id>/<facturas|abonos|comprobantes>/<uuid>.<ext>`, generada por el servidor.
+
+| Acción | SA | Admin | Eq+$ | Eq |
+|---|---|---|---|---|
+| Leer (la regla mira la tabla dueña: factura, comprobante o abono; no solo la carpeta) | Sí | De su empresa | De su empresa | No |
+| Subir | Facturas, soportes y comprobantes en cualquier empresa | Solo comprobantes en su empresa | Solo comprobantes en su empresa y solo con `subir_archivos` | No |
+| Reemplazar o borrar | Nadie (sin políticas de UPDATE ni DELETE) | Nadie | Nadie | Nadie |
+
+En "ver como" no se sube nada. Las políticas sobre `storage.objects` solo se crean si existe ese esquema (Supabase real); las funciones que deciden (`private.puede_leer_archivo_dinero`, `private.puede_subir_archivo_dinero`) sí están probadas.
+
+### Registro de actividad (por triggers)
+
+`contrato_creado`, `contrato_editado`, `pago_programado_creado|editado|quitado`, `abono_registrado`, `abono_anulado`, `factura_subida`, `factura_anulada`, `factura_descargada`, `comprobante_subido`, `comprobante_confirmado`, `comprobante_rechazado`. Todos con `proyecto_id` en el detalle. Solo lo lee el super admin.
+
+## Módulo 5 (Tickets y mantenimiento, sprint 5)
+
+Equipo Websourcing · Desarrollo. Complementa `docs/matriz-permisos.md` (no la reemplaza). Todo se decide en la base de datos con RLS; el JWT no da permisos. Super admin = dueño, con 2FA (aal2). Ninguna tabla tiene acceso para `anon` ni `service_role`.
+
+### Tablas (acceso directo por la API)
+
+| Tabla | Super admin | Admin del cliente | Equipo del cliente | Escritura directa |
+|---|---|---|---|---|
+| `tickets` | Lee todos | Lee todos los de su empresa | Lee los que creó (o todos con el permiso `ver_todos_tickets`) | Ninguna: solo RPC |
+| `ticket_mensajes` | Lee todos, con notas internas | Lee los no internos de tickets que ve | Igual | Ninguna: solo RPC |
+| `ticket_adjuntos` | Lee todos | Los de tickets visibles; los de notas internas no | Igual | Ninguna: solo RPC (`preparar_adjunto_ticket`) |
+| `garantias` | Lee, crea, edita | Lee las de su empresa | Lee las de su empresa | Solo super admin (con WITH CHECK) |
+| `planes_base_mantenimiento` | Lee y edita `parametros`/`nota` | No | No | Solo super admin |
+| `planes_mantenimiento` | Lee todos | Lee el de su empresa solo si está ACTIVO | No | Ninguna: solo RPC |
+| `planes_mantenimiento_historial` | Lee | No | No | Ninguna |
+| `bolsa_mensual`, `bolsa_avisos` | Lee | Lee si el mantenimiento está activo | No | Ninguna |
+| `horas_registradas` | Lee todas | Lee solo las ya revisadas por el dueño | No | Ninguna |
+| `horas_notas_internas` | Lee | No | No | Ninguna |
+| `outbox_correos` | Lee | No | No | Ninguna (solo triggers) |
+| Vistas `tickets_semaforo`, `bolsa_mensual_resumen` | Lee | Lee lo suyo (security invoker) | Tickets suyos | No aplica |
+
+Nadie borra filas. Una empresa nunca ve datos de otra. En modo "ver como el cliente" todo es de solo lectura (trigger `ver_como_solo_lectura` en las 12 tablas).
+
+### Funciones (RPC)
+
+| Función | Quién | Qué hace / reglas clave |
+|---|---|---|
+| `crear_ticket` | Cliente (admin o equipo) | Tipo, título, detalle, prioridad propuesta, proyecto opcional (de la misma empresa). Calcula plazo y si queda `fuera_de_plan`. |
+| `responder_ticket` | Cliente y super admin | Websourcing exige `p_area` (una de las 6 áreas) o `p_interno=true`. El primer mensaje público de Websourcing marca la primera respuesta. |
+| `retirar_texto_mensaje` | Super admin | Retira el texto (queda constancia). |
+| `preparar_adjunto_ticket` | Quien ve el ticket | Valida tipo (imagen, video, audio), tamaño (hasta 50 MB), máximo 30; devuelve la ruta en el bucket `portal-tickets`. |
+| `clasificar_ticket` | Super admin | Confirma prioridad (y corrige tipo); `nuevo` pasa a `clasificado`. |
+| `cambiar_estado_ticket` | Super admin | Transiciones válidas; `resuelto` exige resolución. Cambios o fuera de plan no pasan a `en_progreso` sin decisión; bolsa agotada sin autorización tampoco. |
+| `marcar_solicitud_cambio` | Super admin | Convierte el ticket en solicitud de cambio (pasa al flujo del Product Manager). |
+| `decidir_ticket` | Super admin | `regalar`, `cobrar` (valor y moneda) o `rechazar` (cierra el ticket). |
+| `aceptar_cobro_ticket`, `rechazar_cobro_ticket` | Admin del cliente | Acepta o rechaza el cobro propuesto. Rechazar cierra el ticket. |
+| `confirmar_resolucion` | Dueño del ticket o admin del cliente | Cierra un ticket `resuelto`. |
+| `calificar_ticket` | Quien creó el ticket o admin | 1 a 5 estrellas, una sola vez, ticket cerrado. |
+| `activar_mantenimiento`, `apagar_mantenimiento`, `configurar_mantenimiento` | Super admin (aal2) | Activar exige cuota y fecha de inicio. Todo queda en el historial con motivo. |
+| `anotar_horas_ticket` | Super admin | Horas manuales por ticket; quedan `pendiente_dueno`. |
+| `revisar_horas` | Super admin (dueño) | Aprueba (descuenta de la bolsa; el sobrante pasa a hora extra) o rechaza con motivo. |
+| `decidir_horas_extra`, `autorizar_horas_extra` | Admin del cliente | Decide una hora extra o pre-autoriza las del mes. |
+| `mi_mantenimiento_activo` | Cualquier usuario | `true` si su empresa tiene el plan activo (para mostrar el módulo). |
+
+### Reglas y semáforo
+
+- Horario por defecto (D-002): lunes a viernes 8:00 a 18:00, hora de Bogotá, sin festivos. Con plan activo y vigente mandan los horarios y tiempos del plan (D-003).
+- Semáforo: `verde` (queda más del 50 % del plazo), `amarillo` (50 % o menos; umbral en `configuracion('semaforo_tickets')`), `rojo` (vencido), `cumplido` / `incumplido` (ya hubo primera respuesta), `cerrado`, `sin_plazo` (prioridad baja: siguiente planeación).
+- Bolsa de horas (D-007): las horas no usadas se pierden al cerrar el mes, salvo que el plan tenga `acumular_horas`; en ese caso se arrastra como máximo el sobrante de un mes de horas propias.
+- Horas (D-008): las anota el super admin y el dueño las revisa antes de descontar. Aviso al 80 % y al 100 %, con historial.
+- Cierre automático: tickets `resuelto` sin confirmar se cierran a los 3 días.
+- Los textos libres de tickets (título, mensajes) no se guardan en `registro_actividad` ni en la cola de correos.
+
+### Interpretaciones tomadas (9)
+
+Aceptadas por Calidad como lecturas válidas: 2 y 4. Corregida tras la revisión: 5. Las demás siguen pendientes de confirmación del dueño.
+
+1. Un día hábil equivale a una jornada completa de horario hábil.
+2. (Lectura aceptada.) Tickets de soporte son error, pregunta y acceso; las solicitudes de cambio no cuentan como soporte, así que `fuera_de_plan` también aplica a pregunta y acceso.
+3. `fuera_de_plan` se evalúa al crear el ticket. El ticket se puede crear, pero no se trabaja sin decisión del dueño.
+4. (Lectura aceptada.) Registrar y revisar horas lo hace el super admin; la versión 1 no tiene un rol de personal separado.
+5. (Corregida, Módulo 10.) Las horas se anotan en todos los tickets y descuentan de la bolsa todas, salvo las de solicitudes de cambio: se cotizan aparte (CLAUDE.md sección 5), quedan anotadas para costo (`sin_descuento`) y no tocan la bolsa.
+6. Los valores de los planes Básico, Estándar y Premium (incluidas las horas) son propuestas de Desarrollo, sin precios; el dueño las confirma.
+7. El semáforo no se detiene en `esperando_cliente`; solo mide la primera respuesta.
+8. Rechazar el cobro de un ticket lo cierra (`cobro_rechazado`).
+9. "3 días" del cierre automático son días corridos; se omiten empresas pausadas; la bolsa agotada solo frena el paso a `en_progreso` de tickets nuevos, no los que ya están en curso.
+
+### Correcciones de Calidad (migración `20270108000800`)
+
+- I-1: la cola de correos guarda solo identificadores, tipo y datos de control (nunca título ni texto del cliente).
+- I-2 (elegido: el corte espera): `cerrar_mes_bolsas` no cierra una bolsa mientras haya horas en `pendiente_dueno`; el dueño las revisa y se imputan a la bolsa del mes en que se trabajaron. El corte corre a diario, así que cierra al día siguiente de la revisión. Si la bolsa del mes siguiente ya existía, recibe lo arrastrado.
+- M-1: al aprobar horas no se guarda nota (el cliente ve las filas aprobadas); la nota solo existe al rechazar, y esas filas no las ve el cliente.
+- M-2: un plan sin `horas_mes` mayor que 0 no se activa (`horas_requeridas`).
+- M-3: no se decide "cobrar" en un ticket en `en_progreso`, `esperando_cliente` o `resuelto` (`ticket_en_progreso`).
+- M-5: el bucket `portal-tickets` se corrige (privado, 50 MB, tipos permitidos) aunque ya existiera.
+
+## Integración y sprint 6 (cola de avisos, freno de acceso, ahorro de espacio)
+
+| Objeto | Anónimo | Cliente / equipo | SA (con 2FA) | service_role |
+|---|---|---|---|---|
+| `avisos_salientes` (cola única) | nada | nada (sin lectura directa) | solo lectura | select y update de `estado, intentos, enviado_en, ultimo_error, programado_para, reclamado_hasta`; no inserta ni borra |
+| `reclamar_avisos`, `marcar_aviso`, `marcar_avisos_sin_proveedor` | nada | nada | nada | ejecutar |
+| `freno_acceso_consultar`, `freno_acceso_anotar` | nada | nada | nada | ejecutar |
+| Cuota de espacio por empresa (config y uso) | nada | ver su uso | ver y cambiar la cuota | nada |
+| `archivados` (registro de archivos trasladados) | nada | leer los de su empresa | leer y marcar | nada |
+| Interruptor `videos_a_archivo_externo` | nada | nada | leer y cambiar | nada |
+| Resumen del registro de actividad a 12 meses | nada | nada | ejecutar | nada |
+
+La cola guarda solo identificadores, tipo y referencia; los destinatarios y textos se resuelven al enviar, en el servidor.

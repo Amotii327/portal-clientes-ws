@@ -26,6 +26,15 @@ test.describe('Entrar y salir', () => {
     await expect(page).toHaveURL(/\/recuperar/);
   });
 
+  test('freno en el servidor: 5 contraseñas malas frenan la cuenta aunque la sexta sea correcta', async ({ page }) => {
+    for (let i = 0; i < 5; i++) {
+      await entrar(page, 'admin@cliente.test', 'clave-equivocada-' + i);
+    }
+    await entrar(page, 'admin@cliente.test'); // clave correcta, pero ya está frenada
+    await expect(page.getByText('Cuenta frenada por 15 minutos')).toBeVisible();
+    await expect(page).toHaveURL(/\/entrar/);
+  });
+
   test('campos vacíos: muestra qué falta', async ({ page }) => {
     await page.goto('/entrar');
     await page.getByRole('button', { name: 'Entrar', exact: true }).click();
