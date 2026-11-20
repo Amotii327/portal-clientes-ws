@@ -38,5 +38,5 @@ Ninguna. La facturación del cliente estaba en los requerimientos aprobados y so
 Sprint 2 según el plan aprobado (v2). Incluye la publicación en el VPS con link de prueba.
 
 ## Aprobación
-- Dueño: ___ · Fecha: ___
+- Dueño: aprobado · Fecha: 2026-11-20
 - Cliente: aprueba / pide ajustes: ___ · Fecha: ___
