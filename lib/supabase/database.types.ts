@@ -365,3 +365,408 @@ export interface ConsumoEquipo {
   aviso_80_en: string | null;
   sprints: { sprint_id: string; numero: number; nombre: string; estimado_pct: number | null; real_pct: number | null }[];
 }
+
+// =====================================================================================
+// Revisiones y documentos (sprint 3). Escritos a mano, fundidos aqui en la integracion (antes: lib/supabase/tipos-revisiones-docs.ts).
+// =====================================================================================
+export type TipoRevision = 'diseno' | 'sprint' | 'documento';
+export type EstadoRevision = 'borrador' | 'publicada' | 'aprobada' | 'cambios_pedidos' | 'reabierta';
+export type DecisionRevision = 'apruebo' | 'pido_cambios';
+export type CategoriaDocumento =
+  | 'contrato' | 'propuesta' | 'requerimientos' | 'arquitectura' | 'acta' | 'manual' | 'entregable' | 'otro';
+export type VisibilidadDocumento = 'todo_el_equipo' | 'solo_admin' | 'personas';
+export type EstadoArchivoCliente = 'nuevo' | 'recibido';
+export type DestinoSubida = 'documento' | 'archivo_cliente' | 'captura';
+export type BucketPortal = 'documentos' | 'archivos-empresa' | 'capturas-revisiones';
+
+export interface Revision {
+  id: string;
+  empresa_id: string;
+  proyecto_id: string;
+  tipo: TipoRevision;
+  sprint_id: string | null;
+  documento_id: string | null;
+  titulo: string;
+  estado: EstadoRevision;
+  /** Versión vigente (la última publicada; en `borrador`, la 1). */
+  version_actual: number;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface RevisionVersion {
+  id: string;
+  empresa_id: string;
+  revision_id: string;
+  version: number;
+  link_prueba: string | null;
+  video_url: string | null;
+  /** Documento (categoría "acta") con el acta del sprint o del diseño. */
+  acta_documento_id: string | null;
+  resumen: string | null;
+  creada_en: string;
+  /** El cliente solo recibe las publicadas; el super admin ve también el borrador (`null`). */
+  publicada_en: string | null;
+}
+
+/** La respuesta del cliente. NO trae IP, usuario ni navegador (eso solo lo lee el super admin en el registro). */
+export interface Aprobacion {
+  id: string;
+  empresa_id: string;
+  revision_id: string;
+  version: number;
+  decision: DecisionRevision;
+  comentario: string | null;
+  /** Ruta en el bucket `capturas-revisiones`. */
+  captura_path: string | null;
+  miembro_id: string;
+  /** Nombre de quien respondió (el que tenía ese día). */
+  persona: string;
+  creado_en: string;
+}
+
+export interface Documento {
+  id: string;
+  empresa_id: string;
+  proyecto_id: string | null;
+  categoria: CategoriaDocumento;
+  titulo: string;
+  descripcion: string | null;
+  visibilidad: VisibilidadDocumento;
+  version_actual: number;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface DocumentoVersion {
+  id: string;
+  empresa_id: string;
+  documento_id: string;
+  version: number;
+  bucket_id: 'documentos';
+  storage_path: string;
+  nombre_original: string;
+  mime_type: string;
+  tamano_bytes: number;
+  nota: string | null;
+  creado_en: string;
+}
+
+export interface DocumentoPermiso {
+  id: string;
+  empresa_id: string;
+  documento_id: string;
+  miembro_id: string;
+  otorgado_en: string;
+  revocado_en: string | null;
+}
+
+export interface ArchivoCliente {
+  id: string;
+  empresa_id: string;
+  proyecto_id: string | null;
+  bucket_id: 'archivos-empresa';
+  storage_path: string;
+  nombre_original: string;
+  mime_type: string;
+  tamano_bytes: number;
+  nota: string | null;
+  estado: EstadoArchivoCliente;
+  subido_por: string;
+  subido_por_nombre: string;
+  creado_en: string;
+  recibido_en: string | null;
+  /** Solo lo ve el super admin: al cliente le llegan únicamente los no borrados. */
+  borrado_en: string | null;
+}
+
+// ---- Lo que devuelven las funciones ----
+export interface ReservaSubida {
+  reserva_id: string;
+  bucket: BucketPortal;
+  /** Ruta generada por el servidor: `<empresa_id>/<carpeta>/<uuid>.<ext>`. Se sube EXACTAMENTE a esta ruta. */
+  ruta: string;
+  vence_en: string;
+  tamano_maximo: number;
+}
+export interface RevisionCreada { revision_id: string; version: number }
+export interface RespuestaRevision { aprobacion_id: string; estado: 'aprobada' | 'cambios_pedidos' }
+export interface DocumentoCreado { documento_id: string; version: number }
+export interface ArchivoCreado { archivo_id: string }
+export interface ArchivoBorrado { bucket: 'archivos-empresa'; ruta: string }
+
+export interface ItemBandeja {
+  revision_id: string;
+  empresa_id: string;
+  empresa_nombre: string;
+  proyecto_id: string;
+  proyecto_nombre: string;
+  tipo: TipoRevision;
+  titulo: string;
+  estado: EstadoRevision;
+  version: number;
+  actualizado_en: string;
+}
+export interface BandejaRevisiones {
+  aprobado: ItemBandeja[];
+  cambios_pedidos: ItemBandeja[];
+  /** Borradores por publicar y revisiones reabiertas por rehacer. */
+  esperando_a_websourcing: ItemBandeja[];
+  esperando_al_cliente: ItemBandeja[];
+}
+
+/** Tipos de archivo permitidos (idénticos a los de la base y a los de los buckets). */
+export const TIPOS_PERMITIDOS: readonly string[] = [
+  'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'application/pdf',
+  'video/mp4', 'video/quicktime', 'video/webm',
+  'audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/ogg',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/csv', 'text/plain', 'application/zip', 'application/x-zip-compressed',
+];
+export const TIPOS_DE_CAPTURA: readonly string[] = ['image/png', 'image/jpeg', 'image/webp'];
+export const TAMANO_MAXIMO_ARCHIVO = 52_428_800; // 50 MB
+export const TAMANO_MAXIMO_CAPTURA = 10_485_760; // 10 MB
+
+
+// =====================================================================================
+// Dinero (sprint 4). Escritos a mano, fundidos aqui en la integracion (antes: lib/supabase/tipos-dinero.ts).
+// =====================================================================================
+export type Moneda = 'COP' | 'USD';
+export type MedioPago = 'transferencia' | 'consignacion' | 'tarjeta' | 'efectivo' | 'otro';
+/** Estado calculado de una cuota. `en_revision` gana sobre las fechas; `vencido` = fecha pasada y sin pagar. */
+export type EstadoPago = 'pendiente' | 'por_vencer' | 'vencido' | 'en_revision' | 'pagado';
+export type EstadoComprobante = 'en_revision' | 'confirmado' | 'rechazado';
+export type TipoArchivoComprobante = 'application/pdf' | 'image/png' | 'image/jpeg' | 'image/webp';
+
+/** Fila de `v_contratos_saldo` (y `contrato` de dinero_del_proyecto). Fechas AAAA-MM-DD. */
+export interface ContratoConSaldo {
+  contrato_id: string; empresa_id: string; proyecto_id: string;
+  valor: number; moneda: Moneda; anticipo: number; fecha_firma: string | null;
+  abonado: number; saldo: number;
+  /** Suma de las cuotas del plan y lo que aún no está repartido en cuotas. */
+  programado: number; sin_programar: number;
+  pagos_vencidos: number; monto_vencido: number; proximo_vence: string | null;
+}
+
+/** Fila de `v_pagos_programados`. Cada cuota con su hito asociado (si lo tiene y el cliente puede verlo). */
+export interface PagoProgramado {
+  pago_id: string; empresa_id: string; contrato_id: string; proyecto_id: string;
+  concepto: string; valor: number; moneda: Moneda; vence_el: string;
+  hito_id: string | null; hito_numero: number | null; hito_nombre: string | null;
+  abonado: number; pendiente: number; estado: EstadoPago;
+  /** Negativo = ya venció hace tantos días. */
+  dias_para_vencer: number;
+}
+
+export interface AbonoDinero {
+  id: string; pago_programado_id: string | null; valor: number; moneda: Moneda; fecha_pago: string; medio: MedioPago;
+  referencia: string | null; tiene_archivo: boolean;
+  /** Un abono anulado no cuenta para el saldo; se muestra tachado con su motivo (que el cliente también lee). */
+  anulado_en: string | null; anulado_motivo: string | null;
+}
+
+export interface FacturaDinero {
+  id: string; numero: string; valor: number; moneda: Moneda; fecha_emision: string; pago_programado_id: string | null;
+  /** Ruta en el bucket privado "dinero". Se descarga con enlace firmado de 10 minutos, generado con la sesión del usuario. */
+  archivo_path: string; archivo_nombre: string; anulada_en: string | null; anulada_motivo: string | null;
+}
+
+export interface ComprobanteDinero {
+  id: string; pago_programado_id: string; valor_declarado: number; fecha_pago_declarada: string;
+  estado: EstadoComprobante;
+  /** Solo si fue rechazado: el cliente lo lee. */
+  motivo_rechazo: string | null;
+  archivo_nombre: string; archivo_path: string; nota: string | null; creado_en: string; revisado_en: string | null;
+}
+
+/** Respuesta de dinero_del_proyecto. `contrato` es null mientras el proyecto no tenga contrato. */
+export interface DineroDelProyecto {
+  contrato: ContratoConSaldo | null;
+  pagos: PagoProgramado[]; abonos: AbonoDinero[]; facturas: FacturaDinero[]; comprobantes: ComprobanteDinero[];
+}
+
+/** Elemento de la bandeja del super admin (comprobantes_por_revisar). */
+export interface ComprobantePorRevisar {
+  id: string; empresa_id: string; empresa_nombre: string; pago_programado_id: string; concepto: string;
+  valor_declarado: number; moneda: Moneda; fecha_pago_declarada: string; archivo_path: string; archivo_nombre: string;
+  nota: string | null; creado_en: string;
+}
+
+/** Fila de v_ingresos_por_mes / v_ingresos_por_cliente / v_ingresos_por_mes_y_cliente (solo super admin; sin mezclar monedas). */
+export interface IngresoPorMes { mes: string; moneda: Moneda; abonos: number; total: number }
+export interface IngresoPorCliente { empresa_id: string; empresa_nombre: string; moneda: Moneda; abonos: number; total: number; ultimo_pago: string }
+export interface IngresoPorMesYCliente { mes: string; empresa_id: string; empresa_nombre: string; moneda: Moneda; abonos: number; total: number }
+
+/** Lo nuevo que traen panel_super_admin() e inicio_cliente() desde el sprint 4. */
+export interface PanelDinero { pagos_vencidos: number; comprobantes_en_revision: number }
+export interface ItemAtencionPagoVencido {
+  tipo: 'pago_vencido'; prioridad: '1'; empresa_id: string; empresa_nombre: string; proyecto_id: string; proyecto_nombre: string;
+  pago_id: string; concepto: string; pendiente: number; moneda: Moneda; vence_el: string; dias_de_atraso: number;
+}
+export interface ItemAtencionComprobante {
+  tipo: 'comprobante_en_revision'; prioridad: '2'; empresa_id: string; empresa_nombre: string; proyecto_id: string;
+  comprobante_id: string; concepto: string; valor: number; moneda: Moneda; subido_en: string;
+}
+/** En inicio_cliente(): ambos vienen en null si quien llama no tiene "ver dinero". */
+export interface InicioClienteDinero {
+  pagos_vencidos: number | null;
+  proximo_pago: { pago_id: string; proyecto_id: string; concepto: string; pendiente: number; moneda: Moneda; vence_el: string; estado: EstadoPago } | null;
+}
+
+/** Cola de avisos (tabla avisos_salientes). Forma genérica para que tickets y mantenimiento usen la misma. */
+export interface AvisoSaliente {
+  id: string; empresa_id: string; modulo: string; tipo: string; destino: 'super_admin' | 'cliente_dinero' | 'cliente_admin';
+  referencia_id: string | null; clave_unica: string; datos: Record<string, unknown>; programado_para: string;
+  estado: 'pendiente' | 'enviado' | 'fallido' | 'cancelado'; intentos: number; enviado_en: string | null; ultimo_error: string | null; creado_en: string;
+}
+
+// ---- Argumentos de las funciones (los montos como texto para no pasar por float) ----
+export type Monto = string | number;
+export interface ArgsCrearContrato { p_proyecto_id: string; p_valor: Monto; p_moneda: Moneda; p_anticipo?: Monto; p_fecha_firma?: string | null }
+export interface ArgsEditarContrato { p_contrato_id: string; p_valor?: Monto; p_anticipo?: Monto; p_fecha_firma?: string; p_moneda?: Moneda }
+export interface ArgsAgregarPago { p_contrato_id: string; p_concepto: string; p_valor: Monto; p_vence_el: string; p_hito_id?: string | null }
+export interface ArgsEditarPago { p_pago_id: string; p_concepto?: string; p_valor?: Monto; p_vence_el?: string; p_hito_id?: string; p_quitar_hito?: boolean }
+export interface ArgsCrearAbono {
+  p_contrato_id: string; p_valor: Monto; p_fecha_pago: string; p_medio: MedioPago;
+  p_pago_id?: string | null; p_referencia?: string | null; p_archivo_path?: string | null;
+}
+export interface ArgsCrearFactura {
+  p_contrato_id: string; p_numero: string; p_valor: Monto; p_fecha_emision: string;
+  p_archivo_path: string; p_archivo_nombre: string; p_tamano_bytes: number; p_pago_id?: string | null;
+}
+export interface ArgsSubirComprobante {
+  p_pago_id: string; p_archivo_path: string; p_archivo_nombre: string; p_archivo_tipo: TipoArchivoComprobante;
+  p_tamano_bytes: number; p_valor: Monto; p_fecha_pago: string; p_nota?: string | null;
+}
+export interface ArgsConfirmarComprobante { p_comprobante_id: string; p_medio?: MedioPago; p_valor?: Monto; p_fecha_pago?: string; p_referencia?: string }
+
+// =====================================================================================
+// Tickets y mantenimiento (sprints 5 y 6). Escritos a mano, fundidos aqui en la integracion (antes: lib/supabase/tipos-tickets-mant.ts).
+// =====================================================================================
+export type TipoTicket = 'error' | 'solicitud_cambio' | 'pregunta' | 'acceso';
+export type PrioridadTicket = 'urgente' | 'alta' | 'normal' | 'baja';
+export type EstadoTicket = 'nuevo' | 'clasificado' | 'en_progreso' | 'esperando_cliente' | 'resuelto' | 'cerrado';
+export type AreaEquipo = 'Producto' | 'Arquitectura' | 'Diseño' | 'Desarrollo' | 'Calidad' | 'Operaciones';
+export type DecisionDueno = 'cobrar' | 'regalar' | 'rechazar';
+export type MotivoFueraDePlan = 'sin_mantenimiento' | 'mantenimiento_vencido' | 'sin_cobertura_errores';
+export type CierreMotivo = 'confirmado_cliente' | 'automatico' | 'cerrado_por_websourcing' | 'rechazado' | 'cobro_rechazado';
+/** Semáforo del tiempo de primera respuesta. */
+export type Semaforo = 'verde' | 'amarillo' | 'rojo' | 'cumplido' | 'incumplido' | 'cerrado' | 'sin_plazo';
+export type PlanBase = 'basico' | 'estandar' | 'premium' | 'personalizado';
+export type EstadoHora = 'pendiente_dueno' | 'aprobada' | 'rechazada' | 'extra_pendiente_cliente' | 'extra_aprobada' | 'extra_rechazada';
+export type IncluyePlan = 'correccion_errores' | 'copias_seguridad' | 'monitoreo' | 'actualizaciones_seguridad' | 'auditoria_trimestral' | 'pequenos_ajustes';
+
+export interface TicketFila {
+  id: string; empresa_id: string; numero: number; proyecto_id: string | null;
+  tipo: TipoTicket; tipo_original: TipoTicket | null; titulo: string; detalle: string;
+  prioridad_propuesta: PrioridadTicket; prioridad: PrioridadTicket | null; estado: EstadoTicket;
+  creado_por: string; miembro_id: string; fuera_de_plan: boolean; motivo_fuera_de_plan: MotivoFueraDePlan | null;
+  sla_origen: 'predeterminado' | 'mantenimiento'; plazo_habil_minutos: number | null;
+  vence_primera_respuesta: string | null; primera_respuesta_en: string | null; clasificado_en: string | null;
+  resuelto_en: string | null; cerrado_en: string | null; resolucion: string | null; cierre_motivo: CierreMotivo | null;
+  decision_dueno: DecisionDueno | null; decision_motivo: string | null; decision_en: string | null; decision_por: string | null;
+  cobro_valor: number | null; cobro_moneda: Moneda | null; cobro_aceptado_en: string | null; cobro_aceptado_por: string | null;
+  cobro_rechazado_en: string | null; calificacion: number | null; calificacion_comentario: string | null;
+  calificado_en: string | null; creado_en: string; actualizado_en: string;
+}
+export interface TicketMensajeFila {
+  id: string; empresa_id: string; ticket_id: string; autor_id: string | null; autor_tipo: 'cliente' | 'websourcing';
+  area: AreaEquipo | null; texto: string; interno: boolean; retirado_en: string | null; retirado_por: string | null; creado_en: string;
+}
+export interface TicketAdjuntoFila {
+  id: string; empresa_id: string; ticket_id: string; mensaje_id: string | null; subido_por: string; nombre_original: string;
+  mime: string; tamano_bytes: number; storage_path: string; creado_en: string;
+}
+export interface GarantiaFila {
+  id: string; empresa_id: string; proyecto_id: string | null; inicia_en: string; vence_en: string; nota: string | null;
+  creado_por: string | null; creado_en: string; actualizado_en: string;
+}
+export interface PlanMantenimientoFila {
+  id: string; empresa_id: string; activo: boolean; plan_base: PlanBase; fecha_inicio: string | null; fecha_fin: string | null;
+  renovacion_automatica: boolean; moneda: Moneda; cuota_mensual: number | null; horas_mes: number; acumular_horas: boolean;
+  revisiones_por_semana: number; dias_atencion: number[]; horario_desde: string; horario_hasta: string; zona_horaria: string;
+  tiempos_respuesta: Json | null; copias_frecuencia: 'diaria' | 'semanal' | 'mensual' | 'ninguna';
+  parches_frecuencia: 'semanal' | 'quincenal' | 'mensual' | 'trimestral' | 'ninguna';
+  auditoria: boolean; auditoria_cada_meses: 1 | 3 | 6 | 12 | null; reuniones_por_mes: number;
+  reporte_tipo: 'ninguno' | 'resumido' | 'detallado'; servidores_incluidos: boolean; servidores_costo_mensual: number | null;
+  incluye: IncluyePlan[]; incluye_otros: string | null; valor_hora_extra: number | null; proxima_revision: string | null;
+  activado_en: string | null; activado_por: string | null; apagado_en: string | null; apagado_por: string | null;
+  creado_en: string; actualizado_en: string;
+}
+export interface PlanBaseFila { plan: 'basico' | 'estandar' | 'premium'; parametros: Json; nota: string | null; actualizado_en: string; actualizado_por: string | null }
+export interface PlanHistorialFila {
+  id: string; empresa_id: string; plan_id: string; tipo: 'activacion' | 'apagado' | 'parametros'; parametros_anteriores: Json;
+  parametros_nuevos: Json; motivo: string; efectivo_desde: string; aplicado_en: string | null; error_aplicacion: string | null;
+  creado_por: string | null; creado_en: string;
+}
+export interface BolsaFila {
+  id: string; empresa_id: string; plan_id: string; mes: string; horas_incluidas: number; horas_arrastradas: number;
+  horas_usadas: number; horas_extra: number; extra_autorizado: boolean; extra_autorizado_por: string | null;
+  extra_autorizado_en: string | null; aviso_80_en: string | null; aviso_100_en: string | null; cerrada_en: string | null;
+  horas_perdidas: number | null; horas_acumuladas: number | null; creado_en: string; actualizado_en: string;
+}
+export interface BolsaAvisoFila {
+  id: string; empresa_id: string; bolsa_id: string; tipo: '80_por_ciento' | '100_por_ciento'; porcentaje: number;
+  horas_usadas: number; horas_disponibles: number; creado_en: string;
+}
+export interface HoraRegistradaFila {
+  id: string; empresa_id: string; ticket_id: string; bolsa_id: string; origen_id: string | null; mes: string; fecha_trabajo: string;
+  horas: number; estado: EstadoHora; registrado_por: string; registrado_en: string; revisado_por: string | null;
+  revisado_en: string | null; motivo_revision: string | null; decidido_cliente_por: string | null; decidido_cliente_en: string | null;
+  /** true en horas de una solicitud de cambio: se anotan para costo y no descuentan de la bolsa. */
+  sin_descuento: boolean;
+  actualizado_en: string;
+}
+/** Solo super admin. */
+export interface HoraNotaInternaFila { hora_id: string; empresa_id: string; nota: string; creado_en: string }
+
+export interface TicketSemaforoFila {
+  ticket_id: string; empresa_id: string; numero: number; estado: EstadoTicket; prioridad: PrioridadTicket | null;
+  prioridad_propuesta: PrioridadTicket; vence_primera_respuesta: string | null; primera_respuesta_en: string | null;
+  sla_origen: 'predeterminado' | 'mantenimiento'; semaforo: Semaforo; minutos_habiles_restantes: number | null;
+}
+export interface BolsaResumenFila {
+  bolsa_id: string; empresa_id: string; plan_id: string; mes: string; horas_incluidas: number; horas_arrastradas: number;
+  horas_usadas: number; horas_extra: number; horas_disponibles: number; porcentaje_usado: number; extra_autorizado: boolean;
+  aviso_80_en: string | null; aviso_100_en: string | null; cerrada_en: string | null; horas_perdidas: number | null; horas_acumuladas: number | null;
+}
+
+/** Parámetros editables del plan (los que mandan; los planes base son solo un punto de partida). */
+export type ParametrosMantenimiento = Partial<{
+  fecha_inicio: string; fecha_fin: string | null; renovacion_automatica: boolean; moneda: Moneda; cuota_mensual: number;
+  horas_mes: number; acumular_horas: boolean; revisiones_por_semana: number; dias_atencion: number[];
+  horario_desde: string; horario_hasta: string; zona_horaria: string; tiempos_respuesta: Json | null;
+  copias_frecuencia: PlanMantenimientoFila['copias_frecuencia']; parches_frecuencia: PlanMantenimientoFila['parches_frecuencia'];
+  auditoria: boolean; auditoria_cada_meses: 1 | 3 | 6 | 12 | null; reuniones_por_mes: number;
+  reporte_tipo: PlanMantenimientoFila['reporte_tipo']; servidores_incluidos: boolean; servidores_costo_mensual: number | null;
+  incluye: IncluyePlan[]; incluye_otros: string | null; valor_hora_extra: number | null;
+}>;
+
+export interface RespuestaCrearTicket { ticket_id: string; numero: number; fuera_de_plan: boolean; vence_primera_respuesta: string | null }
+export interface RespuestaAdjunto { adjunto_id: string; bucket: 'portal-tickets'; ruta: string }
+
+type Fn<A, R = Json> = { Args: A; Returns: R };
+export interface FuncionesTicketsMant {
+  crear_ticket: Fn<{ p_tipo: TipoTicket; p_titulo: string; p_detalle: string; p_prioridad?: PrioridadTicket; p_proyecto_id?: string | null }, RespuestaCrearTicket>;
+  responder_ticket: Fn<{ p_ticket_id: string; p_texto: string; p_interno?: boolean; p_area?: AreaEquipo | null }>;
+  retirar_texto_mensaje: Fn<{ p_mensaje_id: string }, void>;
+  preparar_adjunto_ticket: Fn<{ p_ticket_id: string; p_nombre: string; p_mime: string; p_tamano_bytes: number; p_mensaje_id?: string | null }, RespuestaAdjunto>;
+  clasificar_ticket: Fn<{ p_ticket_id: string; p_prioridad: PrioridadTicket; p_tipo?: TipoTicket | null }>;
+  cambiar_estado_ticket: Fn<{ p_ticket_id: string; p_estado: EstadoTicket; p_resolucion?: string | null }>;
+  marcar_solicitud_cambio: Fn<{ p_ticket_id: string; p_motivo?: string | null }>;
+  decidir_ticket: Fn<{ p_ticket_id: string; p_decision: DecisionDueno; p_motivo?: string | null; p_valor?: number | null; p_moneda?: Moneda }>;
+  aceptar_cobro_ticket: Fn<{ p_ticket_id: string }>;
+  rechazar_cobro_ticket: Fn<{ p_ticket_id: string }>;
+  confirmar_resolucion: Fn<{ p_ticket_id: string }>;
+  calificar_ticket: Fn<{ p_ticket_id: string; p_estrellas: number; p_comentario?: string | null }>;
+  activar_mantenimiento: Fn<{ p_empresa_id: string; p_plan_base: PlanBase; p_parametros?: ParametrosMantenimiento; p_motivo?: string | null }>;
+  apagar_mantenimiento: Fn<{ p_empresa_id: string; p_motivo: string }>;
+  configurar_mantenimiento: Fn<{ p_empresa_id: string; p_parametros: ParametrosMantenimiento; p_motivo: string; p_aplicar_desde?: 'hoy' | 'proximo_mes' }>;
+  anotar_horas_ticket: Fn<{ p_ticket_id: string; p_horas: number; p_nota?: string | null; p_fecha?: string | null }>;
+  revisar_horas: Fn<{ p_hora_id: string; p_aprobar: boolean; p_motivo?: string | null }>;
+  decidir_horas_extra: Fn<{ p_hora_id: string; p_aprobar: boolean }>;
+  autorizar_horas_extra: Fn<{ p_bolsa_id: string }>;
+  mi_mantenimiento_activo: Fn<Record<string, never>, boolean>;
+}
