@@ -21,11 +21,21 @@ create function tests.factura(p_numero text) returns uuid language sql security 
   select id from public.facturas where numero = p_numero
 $$;
 -- Ruta de archivo valida y nueva: <empresa>/<carpeta>/<uuid>.<ext>
-create function tests.ruta(p_empresa text, p_carpeta text, p_ext text default 'pdf') returns text language sql as $$
-  select tests.id(p_empresa)::text || '/' || p_carpeta || '/' || gen_random_uuid() || '.' || p_ext
-$$;
+-- Para "comprobantes" tambien deja el objeto en el Storage simulado (con Storage real, subir_comprobante exige que el
+-- archivo exista y usa su tipo y tamano REALES). Tipo segun la extension y 2000 bytes, salvo que se pida otro tamano.
+create function tests.ruta(p_empresa text, p_carpeta text, p_ext text default 'pdf', p_tam bigint default 2000) returns text
+language plpgsql security definer set search_path = '' as $$
+declare v_ruta text := tests.id(p_empresa)::text || '/' || p_carpeta || '/' || gen_random_uuid() || '.' || p_ext;
+begin
+  if p_carpeta = 'comprobantes' and to_regclass('storage.objects') is not null then
+    insert into storage.objects (bucket_id, name, metadata)
+    values ('dinero', v_ruta, jsonb_build_object('size', p_tam, 'mimetype',
+      case p_ext when 'pdf' then 'application/pdf' when 'png' then 'image/png' when 'jpg' then 'image/jpeg' when 'webp' then 'image/webp' else 'x/x' end));
+  end if;
+  return v_ruta;
+end $$;
 grant execute on function tests.contrato(text), tests.pago(text), tests.comprobante_de(text, text), tests.abonos_de(text),
-  tests.saldo(text), tests.factura(text), tests.ruta(text, text, text) to public;
+  tests.saldo(text), tests.factura(text), tests.ruta(text, text, text, bigint) to public;
 
 -- Prepara dinero para las empresas A y B (como super admin con 2FA):
 --   Portal A: contrato 10.000.000 COP, anticipo 3.000.000; cuotas

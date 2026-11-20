@@ -3,7 +3,6 @@ begin;
 select plan(17);
 \ir ../local/fixtures.sql
 \ir ../local/fixtures_tickets.sql
-\ir ../local/mock_extra_storage_tickets.sql
 
 insert into public.garantias (empresa_id, inicia_en, vence_en) values
   (tests.id('empresa_a'), current_date - 5, current_date + 25), (tests.id('empresa_b'), current_date - 5, current_date + 25);
@@ -38,7 +37,8 @@ select is(tests.afectadas($$delete from storage.objects where bucket_id = 'porta
 select tests.como(tests.id('equipo_a'));
 select is(tests.afectadas($$update storage.objects set name = name || 'x' where bucket_id = 'portal-tickets'$$), 0::bigint, 'nadie cambia archivos desde la API');
 select tests.anonimo();
-select ok(tests.error_es($$select * from storage.objects$$, 'permission denied for table objects'), 'anonimo no tiene acceso a los archivos');
+-- Como en Supabase real (el mock unico da permisos de tabla a anon): manda la RLS, y sin politica para anon no ve ninguna fila.
+select is((select count(*)::int from storage.objects), 0, 'anonimo no ve ningun archivo');
 
 select * from finish();
 rollback;

@@ -34,7 +34,7 @@ Equipo Websourcing · Desarrollo
 - Tareas programadas: el cierre automático de tickets y el corte mensual de bolsas se programan solo si la extensión `pg_cron` está activada en Supabase; si no, DevOps debe llamarlas desde otro programador.
 - Correos: los avisos se guardan en la cola `outbox_correos`; todavía no hay envío real (falta conectar el servicio de correo). Esa tabla no tiene permisos para `service_role`; el módulo de notificaciones deberá concederlos y ajustar la prueba 01.
 - Hito 13 y cuota mensual generada (`pagos_programados`): quedan para el sprint de dinero; no se integró aquí.
-- Cambios en archivos compartidos: el conteo de tablas en `01_estructura.test.sql` (31), `scripts/test-db.sh` (carga `mock_extra_*.sql`) y el mock de Storage `supabase/tests/local/mock_extra_storage_tickets.sql` (solo pruebas).
+- Cambios en archivos compartidos: el conteo de tablas en `01_estructura.test.sql` (31), `scripts/test-db.sh` (carga `mock_extra_*.sql`) y el mock de Storage `supabase/tests/local/mock_supabase.sql` (solo pruebas).
 
 ## Cambios tras la revisión de Calidad (migración `20270108000800`)
 

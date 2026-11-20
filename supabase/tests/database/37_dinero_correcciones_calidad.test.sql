@@ -43,15 +43,17 @@ select is((select count(*)::int from public.pagos_programados where concepto = '
 
 -- ---------- M-2: Storage de mentira ----------
 select tests.admin();
-create schema storage;
-create table storage.objects (bucket_id text, name text, metadata jsonb);
-create temp table rr as select tests.ruta('empresa_a', 'comprobantes', 'pdf') as buena, tests.ruta('empresa_a', 'comprobantes', 'pdf') as ausente,
-  tests.ruta('empresa_a', 'comprobantes', 'pdf') as falsa, tests.ruta('empresa_a', 'comprobantes', 'pdf') as grande;
+-- Rutas escritas a mano (sin la ayuda tests.ruta, que ya deja un objeto en el Storage simulado):
+-- "ausente" no existe, "falsa" dice ser pdf pero es html, "grande" pesa 99 MB, "buena" es correcta.
+create temp table rr as select
+  tests.id('empresa_a')::text || '/comprobantes/' || gen_random_uuid() || '.pdf' as buena,
+  tests.id('empresa_a')::text || '/comprobantes/' || gen_random_uuid() || '.pdf' as ausente,
+  tests.id('empresa_a')::text || '/comprobantes/' || gen_random_uuid() || '.pdf' as falsa,
+  tests.id('empresa_a')::text || '/comprobantes/' || gen_random_uuid() || '.pdf' as grande;
 grant select on rr to public;
-insert into storage.objects select 'dinero', buena, '{"mimetype": "application/pdf", "size": 2048}' from rr;
-insert into storage.objects select 'dinero', falsa, '{"mimetype": "text/html", "size": 100}' from rr;
-insert into storage.objects select 'dinero', grande, '{"mimetype": "application/pdf", "size": 99999999}' from rr;
-grant usage on schema storage to public; grant select on storage.objects to public;
+insert into storage.objects (bucket_id, name, metadata) select 'dinero', buena, '{"mimetype": "application/pdf", "size": 2048}' from rr;
+insert into storage.objects (bucket_id, name, metadata) select 'dinero', falsa, '{"mimetype": "text/html", "size": 100}' from rr;
+insert into storage.objects (bucket_id, name, metadata) select 'dinero', grande, '{"mimetype": "application/pdf", "size": 99999999}' from rr;
 select tests.como(tests.id('admin_a'));
 select throws_ok($$select public.subir_comprobante(tests.pago('Saldo final'), (select ausente from rr), 'a.pdf', 'application/pdf', 100, 100, private.hoy())$$, '22023', 'archivo_invalido', 'el archivo debe existir de verdad en Storage');
 select throws_ok($$select public.subir_comprobante(tests.pago('Saldo final'), (select falsa from rr), 'a.pdf', 'application/pdf', 100, 100, private.hoy())$$, '22023', 'archivo_invalido', 'el tipo REAL del archivo debe ser el declarado (era html)');
