@@ -11,7 +11,11 @@
 insert into public.configuracion (clave, valor) values
   ('cupo_espacio', '{"cupo_bytes_por_defecto": 1073741824, "aviso_porcentaje": 80}'),
   ('archivo_externo', '{"dias_tras_cierre": 30}'),
-  ('registro_resumen', '{"meses": 12, "borrar_detalle": false}')
+  ('registro_resumen', '{"meses": 12, "borrar_detalle": false}'),
+  -- D-021: el archivo externo es el disco del VPS de Hostinger. Interruptor APAGADO hasta que el VPS exista: apagado, los videos
+  -- de tickets se reciben como enlace o en Supabase (maximo 20 MB, dentro del cupo). Encendido, Supabase ya no recibe videos
+  -- (error video_a_archivo_externo): van al archivo externo o se pegan como enlace.
+  ('videos_a_archivo_externo', '{"activo": false}')
 on conflict (clave) do nothing;
 
 -- ---------- 1) Cupo por empresa ----------
@@ -191,6 +195,10 @@ begin
     when 'audio/wav' then 'wav' when 'audio/ogg' then 'ogg' when 'audio/webm' then 'weba' end;
   if v_ext is null or p_tamano_bytes is null or p_tamano_bytes not between 1 and 52428800 then
     raise exception 'adjunto_invalido' using errcode = '22023';
+  end if;
+  if p_mime like 'video/%' and coalesce((select (g.valor ->> 'activo')::boolean from public.configuracion g
+                                          where g.clave = 'videos_a_archivo_externo'), false) then
+    raise exception 'video_a_archivo_externo' using errcode = 'P0001';
   end if;
   -- Solicitud de cambio 5: un video pesa maximo 20 MB; si es mas grande, se pega un enlace (agregar_enlace_video_ticket).
   if p_mime like 'video/%' and p_tamano_bytes > 20971520 then
@@ -410,6 +418,16 @@ begin
             order by marcado_en limit least(greatest(coalesce(p_limite, 50), 1), 500)) a), '[]'::jsonb);
 end $$;
 
+-- Los ya trasladados y verificados (con huella): los candidatos a quitar de Supabase.
+create function public.archivos_por_borrar(p_limite integer default 50) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if auth.uid() is not null then raise exception 'no_autorizado' using errcode = '42501'; end if;
+  return coalesce((select jsonb_agg(jsonb_build_object('id', a.id, 'bucket', a.bucket_id, 'ruta', a.storage_path) order by a.trasladado_en)
+     from (select * from public.archivos_archivados where estado = 'trasladado' and huella_sha256 is not null
+            order by trasladado_en limit least(greatest(coalesce(p_limite, 50), 1), 500)) a), '[]'::jsonb);
+end $$;
+
 create function public.archivo_trasladado(p_id uuid, p_ubicacion text, p_huella text) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
@@ -476,6 +494,8 @@ create table public.registro_actividad_resumen (
   creado_en   timestamptz not null default now()
 );
 create unique index registro_resumen_unico on public.registro_actividad_resumen (empresa_id, mes, accion, entidad) nulls not distinct;
+create trigger registro_resumen_empresa_fija before update on public.registro_actividad_resumen
+  for each row execute function private.empresa_id_inmutable();
 create trigger registro_resumen_solo_agregar before update or delete on public.registro_actividad_resumen
   for each row execute function private.solo_agregar();
 create trigger registro_resumen_sin_truncar before truncate on public.registro_actividad_resumen
@@ -572,12 +592,12 @@ revoke all on function private.espacio_usado(uuid), private.cupo_de(uuid), priva
 grant execute on function private.cupo_permite_subida(text, text) to authenticated;
 revoke all on function public.fijar_cupo_espacio(uuid, bigint), public.espacio_de_empresa(uuid), public.espacio_por_empresas(),
   public.agregar_enlace_video_ticket(uuid, text, uuid), public.marcar_para_archivar(integer), public.pedir_recuperar_archivo(uuid),
-  public.resumir_registro_actividad(integer), public.archivos_por_trasladar(integer), public.archivo_trasladado(uuid, text, text),
+  public.resumir_registro_actividad(integer), public.archivos_por_trasladar(integer), public.archivos_por_borrar(integer), public.archivo_trasladado(uuid, text, text),
   public.archivo_borrado_de_supabase(uuid), public.archivo_recuperado(uuid), public.archivo_con_error(uuid, text)
   from public, anon, authenticated, service_role;
 grant execute on function public.fijar_cupo_espacio(uuid, bigint), public.espacio_de_empresa(uuid), public.espacio_por_empresas(),
   public.agregar_enlace_video_ticket(uuid, text, uuid), public.pedir_recuperar_archivo(uuid) to authenticated;
 grant execute on function public.marcar_para_archivar(integer), public.resumir_registro_actividad(integer) to authenticated, service_role;
-grant execute on function public.archivos_por_trasladar(integer), public.archivo_trasladado(uuid, text, text),
+grant execute on function public.archivos_por_trasladar(integer), public.archivos_por_borrar(integer), public.archivo_trasladado(uuid, text, text),
   public.archivo_borrado_de_supabase(uuid), public.archivo_recuperado(uuid), public.archivo_con_error(uuid, text) to service_role;
 -- preparar_adjunto_ticket y reservar_subida conservan sus permisos (create or replace no los cambia).

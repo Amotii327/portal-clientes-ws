@@ -11,7 +11,7 @@ select is_empty(
 
 -- 2. Las 10 tablas del sprint 1 existen.
 select is((select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
-            where n.nspname = 'public' and c.relkind = 'r'), 46, 'hay 46 tablas en public (sprints 1 a 5, todos los modulos, con la cola de avisos unica)');
+            where n.nspname = 'public' and c.relkind = 'r'), 50, 'hay 50 tablas en public (sprints 1 a 5, cola de avisos unica y solicitud de cambio 5)');
 
 -- 3. Toda tabla con RLS tiene politicas, salvo super_admins (cerrada a proposito).
 select is_empty(
@@ -106,7 +106,7 @@ select is_empty(
 select is_empty(
   $$select x.t from (values ('registro_actividad'), ('aceptaciones_politica')) x(t)
      where (select count(*) from pg_trigger t join pg_proc p on p.oid = t.tgfoid
-             where t.tgrelid = ('public.' || x.t)::regclass and p.proname = 'solo_agregar') < 2$$,
+             where t.tgrelid = ('public.' || x.t)::regclass and p.proname in ('solo_agregar', 'registro_solo_agregar')) < 2$$,
   'registro_actividad y aceptaciones_politica bloquean UPDATE, DELETE y TRUNCATE');
 
 -- 14. Vistas (hoy ninguna): si aparecen, deben ser security_invoker.
