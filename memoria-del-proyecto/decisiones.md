@@ -73,3 +73,8 @@ Todas aprobadas por el dueño el 2026-11-19 ("sí a todo" a las propuestas de la
 - **Costo para el dueño:** mientras está en "ver como", no puede editar nada en esa sesión del navegador; debe salir con el botón "Salir". Si abre otra pestaña con el mismo inicio de sesión, también queda en solo lectura.
 - **Aprobó:** dueño, 2026-11-20 (solo lectura, como se propuso)
 
+
+## D-021 · Archivo externo de archivos viejos y videos · 2026-11-20
+- **Qué se decidió:** los videos de tickets y los archivos de proyectos cerrados hace más de 30 días se guardan en el disco del VPS de Hostinger, junto a la copia diaria (D-015), no en Supabase ni en Google Drive. Mientras el VPS no esté listo, los videos se reciben como link o en Supabase dentro del cupo de la empresa.
+- **Qué se descartó:** Google Drive (otra cuenta que conectar y vigilar, 15 GB gratis).
+- **Aprobó:** dueño, 2026-11-20 (solicitud de cambio 5)
