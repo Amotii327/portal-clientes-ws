@@ -3,8 +3,11 @@ import * as React from 'react';
 import { FileAudio, FileImage, FileVideo, Paperclip, X } from 'lucide-react';
 import { crearClienteNavegador } from '@/lib/supabase/client';
 import { prepararAdjuntoTicket } from '@/lib/portal/acciones-tickets';
+import { agregarEnlaceVideoTicket } from '@/lib/portal/acciones-espacio';
+import { Field, Input } from '@/components/ui/form';
+import type { EnlaceVideoTicket } from '@/lib/supabase/database.types';
 import type { TicketAdjuntoFila } from '@/lib/supabase/tipos-tickets-mant';
-import { MIME_ADJUNTOS, ejecutar, mb, motivoDeRechazo } from './comunes';
+import { MIME_ADJUNTOS, ejecutar, enlaceValido, mb, motivoDeRechazo } from './comunes';
 
 /**
  * Sube archivos en dos pasos: la base da la ruta (preparar_adjunto_ticket) y luego se sube a Storage.
@@ -83,5 +86,33 @@ export function AdjuntoVista({ a }: { a: TicketAdjuntoFila }) {
         {fallo && <span className="shrink-0 text-warning">· no disponible</span>}
       </figcaption>
     </figure>
+  );
+}
+
+/** Guarda el link de video de un ticket (alternativa al archivo para videos de más de 20 MB). Devuelve true si quedó guardado. */
+export async function guardarLinkVideo(ticketId: string, url: string, mensajeId: string | null): Promise<{ ok: boolean; mensaje?: string }> {
+  const r = await ejecutar('agregar_enlace_video_ticket', () => agregarEnlaceVideoTicket(crearClienteNavegador(), ticketId, url.trim(), mensajeId ?? undefined));
+  return r.ok ? { ok: true } : { ok: false, mensaje: r.mensaje };
+}
+
+/** Campo "Link de video": para videos pesados se pega un enlace en vez de subir el archivo. */
+export function CampoLinkVideo({ id, valor, onCambio, intento, deshabilitado }: { id: string; valor: string; onCambio: (v: string) => void; intento?: boolean; deshabilitado?: boolean }) {
+  const malo = valor.trim() !== '' && !enlaceValido(valor.trim());
+  return (
+    <Field label="Link de video (opcional)" htmlFor={id} hint="Si tu video pesa más de 20 MB, súbelo a tu nube y pega aquí el enlace (empieza por https://)." error={malo && intento ? 'El enlace debe empezar por https:// y no tener espacios.' : undefined}>
+      <Input id={id} type="url" inputMode="url" maxLength={500} value={valor} disabled={deshabilitado} onChange={(e) => onCambio(e.target.value)} placeholder="https://" />
+    </Field>
+  );
+}
+
+/** Enlaces de video ya guardados en el ticket. */
+export function EnlacesVideo({ enlaces }: { enlaces: EnlaceVideoTicket[] }) {
+  if (enlaces.length === 0) return null;
+  return (
+    <ul className="mt-3 space-y-1.5 text-sm" aria-label="Videos por enlace" data-testid="enlaces-video">
+      {enlaces.map((e) => (
+        <li key={e.id} className="flex items-center gap-2"><FileVideo className="size-4 shrink-0 text-muted-foreground" aria-hidden /><a href={e.url} target="_blank" rel="noopener noreferrer" className="min-w-0 break-all text-primary-text underline">{e.url}</a></li>
+      ))}
+    </ul>
   );
 }

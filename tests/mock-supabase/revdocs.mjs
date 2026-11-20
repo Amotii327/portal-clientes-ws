@@ -3,6 +3,7 @@
 // docs/matriz-permisos-revisiones-docs.md y los mismos códigos de error que la base real. Datos inventados.
 import crypto from 'node:crypto';
 import { crearHitos } from './proyectos.mjs';
+import { exigirCupo } from './espacio.mjs';
 
 const uuid = () => crypto.randomUUID();
 const ahora = () => new Date().toISOString();
@@ -216,6 +217,7 @@ export function rpc(S, nombre, a, c, req, falla) {
       if (!S.empresas.some((e) => e.id === emp)) return falla('empresa_no_disponible');
       if (!(dest === 'captura' ? TIPOS_CAPTURA : TIPOS_PERMITIDOS).includes(mime)) return falla('tipo_no_permitido');
       if (tam > (dest === 'captura' ? MAX_CAPTURA : MAX_ARCHIVO)) return falla('archivo_demasiado_grande');
+      if (!exigirCupo(S, c, emp, tam)) return falla('cupo_espacio_lleno');
       if (rd.reservas.filter((r) => r.user_id === c.user_id && Date.now() - new Date(r.creada_en) < 3600_000).length >= 60) return falla('demasiadas_subidas');
       const bucket = { documento: 'documentos', archivo_cliente: 'archivos-empresa', captura: 'capturas-revisiones' }[dest];
       const carpeta = { documento: 'documentos', archivo_cliente: 'archivos', captura: 'capturas' }[dest];

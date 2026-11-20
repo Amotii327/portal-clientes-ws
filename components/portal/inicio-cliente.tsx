@@ -16,6 +16,7 @@ import { useCargar } from '@/lib/app/datos';
 import type { LineaDeTiempo, TipoHistorial, Json } from '@/lib/supabase/database.types';
 import { fecha } from '@/lib/utils';
 import { LineaDeTiempoReal } from './linea-tiempo';
+import { EspacioDeMiEmpresa } from './espacio/barra';
 import { usePortal } from './contexto';
 
 export interface FilaHistorial { id: number; tipo: TipoHistorial; actor_tipo: string; detalle: Json; visible_cliente: boolean; creado_en: string }
@@ -111,6 +112,7 @@ export function InicioClienteReal() {
           {x.que_falta} <span className="block text-xs">Nueva fecha del hito: {fecha(x.fecha_nueva)}. Motivo: {x.motivo}</span>
         </Alert>
       ))}
+      <EspacioDeMiEmpresa />
       <div className="mb-10 mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="p-5 sm:col-span-2 lg:col-span-1">
           <p className="text-sm text-muted-foreground">Avance del proyecto</p>

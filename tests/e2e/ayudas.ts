@@ -32,8 +32,14 @@ export async function entrarSuper(page: Page) {
   await page.waitForLoadState('networkidle'); // en desarrollo, espera a que la pantalla termine de cargar antes de tocarla
 }
 
+/** Entra como persona del cliente. El administrador pasa por el código de 6 dígitos (D-014: obligatorio por defecto). */
 export async function entrarCliente(page: Page, correo = 'admin@cliente.test') {
   await entrar(page, correo);
+  await page.waitForURL((u) => /^\/(verificar|cliente\/inicio)/.test(u.pathname));
+  if (new URL(page.url()).pathname.startsWith('/verificar')) {
+    await page.getByLabel('Código de 6 dígitos').fill(CODIGO);
+    await page.getByRole('button', { name: 'Verificar y entrar' }).click();
+  }
   await expect(page).toHaveURL(/\/cliente\/inicio/);
   await page.waitForLoadState('networkidle');
 }

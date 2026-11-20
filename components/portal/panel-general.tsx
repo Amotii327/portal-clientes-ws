@@ -15,6 +15,7 @@ import { useCargar } from '@/lib/app/datos';
 import { ESTADO_PROYECTO } from '@/lib/app/proyectos';
 import type { ItemAtencion } from '@/lib/supabase/database.types';
 import { fecha } from '@/lib/utils';
+import { monto } from './dinero/formato';
 
 const enlaceProyecto = (empresa: string, proyecto: string) => `/admin/proyectos/${empresa}/${proyecto}`;
 
@@ -38,6 +39,24 @@ function Atencion({ x }: { x: ItemAtencion }) {
       </li>
     );
   }
+  if (x.tipo === 'pago_vencido') {
+    return (
+      <li className={base} data-testid="atencion-pago">
+        <Badge variant="danger">Pago vencido</Badge>
+        <Enlace className="min-w-0 flex-1 hover:underline" to="/admin/finanzas">{x.empresa_nombre} · {x.proyecto_nombre} · {x.concepto}</Enlace>
+        <span className="text-muted-foreground">{monto(x.pendiente, x.moneda)} · {x.dias_de_atraso} {x.dias_de_atraso === 1 ? 'día' : 'días'}</span>
+      </li>
+    );
+  }
+  if (x.tipo === 'comprobante_en_revision') {
+    return (
+      <li className={base} data-testid="atencion-comprobante">
+        <Badge variant="warning">Comprobante por revisar</Badge>
+        <Enlace className="min-w-0 flex-1 hover:underline" to="/admin/finanzas">{x.empresa_nombre} · {x.concepto}</Enlace>
+        <span className="text-muted-foreground">{monto(x.valor, x.moneda)} · subido el {fecha(x.subido_en)}</span>
+      </li>
+    );
+  }
   return (
     <li className={base} data-testid="atencion-demo">
       <Badge variant="primary">Demo próxima</Badge>
@@ -47,7 +66,7 @@ function Atencion({ x }: { x: ItemAtencion }) {
   );
 }
 
-/** Panel general del super admin con datos reales (panel_super_admin). Pagos y tickets llegan en los sprints 4 y 5. */
+/** Panel general del super admin con datos reales (panel_super_admin): proyectos, pagos y tickets. */
 export function PanelGeneralReal() {
   const { estado, datos, recargar } = useCargar(async () => {
     const { data, error } = await panelSuperAdmin(crearClienteNavegador());
@@ -69,8 +88,8 @@ export function PanelGeneralReal() {
         <Stat etiqueta="Hitos con retraso" valor={t.hitos_atrasados} tono={t.hitos_atrasados ? 'warning' : undefined} nota="Con fecha vencida y sin terminar" icono={<CalendarClock className="size-5" />} />
         <Stat etiqueta="Planes por aprobar" valor={t.planes_por_aprobar} tono={t.planes_por_aprobar ? 'warning' : undefined} nota="Propuestas que el cliente aún no ve" icono={<ClipboardList className="size-5" />} />
         <Stat etiqueta="Demos en 7 días" valor={t.demos_proximas_7_dias} nota="Próximas demos con el cliente" icono={<Presentation className="size-5" />} />
-        <Stat etiqueta="Pagos vencidos" valor={t.pagos_vencidos ?? '—'} nota="Llega con el módulo de dinero" icono={<Wallet className="size-5" />} />
-        <Stat etiqueta="Tickets abiertos" valor={t.tickets_abiertos ?? '—'} nota="Llega con el módulo de tickets" icono={<LifeBuoy className="size-5" />} />
+        <Stat etiqueta="Pagos vencidos" valor={t.pagos_vencidos} tono={t.pagos_vencidos ? 'warning' : undefined} nota={t.comprobantes_en_revision ? `${t.comprobantes_en_revision} comprobante${t.comprobantes_en_revision > 1 ? 's' : ''} por revisar` : 'Sin comprobantes por revisar'} icono={<Wallet className="size-5" />} />
+        <Stat etiqueta="Tickets abiertos" valor={t.tickets_abiertos} nota="Los que aún no están cerrados" icono={<LifeBuoy className="size-5" />} />
       </div>
       <Card className="mb-8">
         <CardHeader><CardTitle className="flex items-center gap-2"><AlertOctagon className="size-5 text-warning" aria-hidden />Requiere tu atención</CardTitle></CardHeader>

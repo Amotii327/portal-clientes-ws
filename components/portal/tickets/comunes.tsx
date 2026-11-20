@@ -100,12 +100,16 @@ export async function ejecutar<T>(accion: string, fn: () => PromiseLike<{ data: 
 /** Lo que acepta el bucket de adjuntos de tickets (debe coincidir con la base). */
 export const MIME_ADJUNTOS = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'video/mp4', 'video/webm', 'video/quicktime', 'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/ogg', 'audio/webm'];
 export const MAX_BYTES = 50 * 1024 * 1024;
+export const MAX_VIDEO_BYTES = 20 * 1024 * 1024; // un video pesa como máximo 20 MB; si es más grande se pega un enlace (SC-5)
 export const MAX_ADJUNTOS = 30;
+/** El enlace debe ser https y sin espacios (igual que la base). */
+export const enlaceValido = (t: string) => /^https:\/\/[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]{2,5})?(\/[^\s\x00-\x1f]*)?$/.test(t) && t.length >= 12 && t.length <= 500;
 export const mb = (b: number) => `${(b / 1024 / 1024).toFixed(1).replace('.', ',')} MB`;
 
 /** Revisa un archivo antes de subirlo. Devuelve el motivo si no sirve. */
 export function motivoDeRechazo(f: File): string | null {
   if (!MIME_ADJUNTOS.includes(f.type)) return `"${f.name}" no se puede adjuntar: solo imágenes, videos y audios.`;
+  if (f.type.startsWith('video/') && f.size > MAX_VIDEO_BYTES) return `"${f.name}" pesa ${mb(f.size)}. Un video puede pesar hasta 20 MB. Para uno más grande, súbelo a tu nube y pega el enlace en "Link de video".`;
   if (f.size > MAX_BYTES) return `"${f.name}" pesa ${mb(f.size)}. El máximo es 50 MB por archivo.`;
   if (f.size === 0) return `"${f.name}" está vacío.`;
   return null;

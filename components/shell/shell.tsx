@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import { Activity, BellRing, KeyRound, Receipt, ClipboardCheck, FolderOpen, Home, LayoutDashboard, LifeBuoy, LogOut, Menu, Users, Wallet, Wrench, Building2, Banknote, Inbox, EyeOff, FolderKanban, Files } from 'lucide-react';
+import { Activity, BellRing, KeyRound, Receipt, ClipboardCheck, FolderOpen, Home, LayoutDashboard, LifeBuoy, LogOut, Menu, Users, Wallet, Wrench, Building2, Banknote, Inbox, EyeOff, FolderKanban, Files, HardDrive } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,7 +30,7 @@ export function Logo({ className, solo }: { className?: string; solo?: boolean }
 /** Alturas que descuentan la barra del prototipo (2.75rem) solo cuando existe. */
 export const ALTO_PANTALLA = MODO_REAL ? 'min-h-dvh' : 'min-h-[calc(100dvh-2.75rem)]';
 
-interface Item { to: string; label: string; icon: React.ReactNode; badge?: number; pronto?: boolean; tambien?: string[] }
+interface Item { to: string; label: string; icon: React.ReactNode; badge?: number; tambien?: string[] }
 
 function useNav(): Item[] {
   const s = useStore();
@@ -49,10 +49,11 @@ function useNav(): Item[] {
       ...(p ? [
         { to: '/admin/documentos', label: 'Documentos de clientes', icon: <FolderOpen className={ic} /> },
         { to: '/admin/archivos', label: 'Archivos de clientes', icon: <Files className={ic} /> },
+        { to: '/admin/espacio', label: 'Espacio de clientes', icon: <HardDrive className={ic} /> },
       ] : []),
       { to: '/admin/finanzas', label: 'Finanzas', icon: <Banknote className={ic} /> },
-      { to: '/admin/tickets', label: 'Tickets de todos', icon: <LifeBuoy className={ic} />, pronto: p },
-      { to: '/admin/mantenimiento', label: 'Mantenimiento', icon: <Wrench className={ic} />, pronto: p },
+      { to: '/admin/tickets', label: 'Tickets de todos', icon: <LifeBuoy className={ic} /> },
+      { to: '/admin/mantenimiento', label: 'Mantenimiento', icon: <Wrench className={ic} /> },
       { to: '/admin/registro', label: 'Registro de actividad', icon: <Activity className={ic} /> },
     ];
     return p ? lista : [lista[2], lista[0], ...lista.slice(3)]; // el prototipo no tiene la lista de proyectos
@@ -63,7 +64,7 @@ function useNav(): Item[] {
     { to: '/cliente/revisiones', label: 'Revisiones', icon: <ClipboardCheck className={ic} />, badge: p ? 0 : pendientes },
   ];
   if (s.can.verDinero) items.push({ to: '/cliente/dinero', label: 'Dinero', icon: <Wallet className={ic} /> });
-  items.push({ to: '/cliente/tickets', label: 'Tickets', icon: <LifeBuoy className={ic} />, pronto: p }, { to: '/cliente/documentos', label: 'Documentos', icon: <FolderOpen className={ic} />, tambien: ['/cliente/archivos'] });
+  items.push({ to: '/cliente/tickets', label: 'Tickets', icon: <LifeBuoy className={ic} /> }, { to: '/cliente/documentos', label: 'Documentos', icon: <FolderOpen className={ic} />, tambien: ['/cliente/archivos'] });
   if (s.can.esAdmin) items.push({ to: '/cliente/equipo', label: 'Mi equipo', icon: <Users className={ic} /> });
   if (p && (s.can.esAdmin || s.can.verDinero)) items.push({ to: '/cliente/facturacion', label: 'Datos de facturación', icon: <Receipt className={ic} /> });
   if (p ? mantActivo : s.empresa.mantenimiento.activo) items.push({ to: '/cliente/mantenimiento', label: 'Mi plan de mantenimiento', icon: <Wrench className={ic} /> });
@@ -81,7 +82,6 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
           <Enlace key={it.to} to={it.to} onClick={onNavigate} aria-current={activo ? 'page' : undefined}
             className={cn('flex h-11 items-center gap-3 rounded px-3 text-sm font-medium transition-colors', activo ? 'bg-primary/15 text-primary-text' : 'text-muted-foreground hover:bg-surface-2 hover:text-foreground')}>
             {it.icon}<span className="flex-1">{it.label}</span>
-            {it.pronto && <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Pronto</span>}
             {!!it.badge && <span className="rounded-full bg-primary px-2 text-xs font-semibold text-primary-foreground">{it.badge}</span>}
           </Enlace>
         );

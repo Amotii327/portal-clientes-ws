@@ -97,8 +97,9 @@ test.describe('Código adicional (2FA)', () => {
     }
   });
 
-  test('admin del cliente pide código cuando se enciende la opción (D-014)', async ({ page }) => {
+  test('admin del cliente sin código configurado debe crearlo antes de entrar (D-014, activo por defecto)', async ({ page }) => {
     await reiniciar({ exigir_2fa_admin_cliente: true });
+    await fetch(`${MOCK}/__sin_factor`, { method: 'POST', body: JSON.stringify({ correo: 'admin@cliente.test' }) }); // aún no configura su código
     await entrar(page, 'admin@cliente.test');
     await expect(page).toHaveURL(/\/verificar/);
     // mientras no verifique, ninguna zona privada se abre (el servidor lo decide con miContexto)

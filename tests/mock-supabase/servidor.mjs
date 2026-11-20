@@ -5,8 +5,9 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import { FUNCIONES_S2, funcionS2, leerProyectos, sembrarProyectos } from './proyectos.mjs';
 import * as revdocs from './revdocs.mjs';
-import { NO_ES_DINERO, leerTablaDinero, rpcDinero, sembrarDinero, storageDinero } from './dinero.mjs';
+import { NO_ES_DINERO, leerTablaDinero, resumenParaPanel, rpcDinero, sembrarDinero, storageDinero } from './dinero.mjs';
 import * as TM from './tickets-mant.mjs';
+import * as ESP from './espacio.mjs';
 
 const PUERTO = Number(process.env.MOCK_PUERTO || 54399);
 const CLAVE = 'ClaveSegura123';
@@ -20,7 +21,7 @@ let S;
 function reiniciar(perfil = 'base') {
   const E = { A: '11111111-1111-4111-8111-111111111111', B: '22222222-2222-4222-8222-222222222222' };
   S = {
-    E, empresas: [], miembros: [], perfiles: {}, usuarios: {}, invitaciones: [], facturacion: {}, preferencias: {}, config: { exigir_2fa_admin_cliente: false },
+    E, empresas: [], miembros: [], perfiles: {}, usuarios: {}, invitaciones: [], facturacion: {}, preferencias: {}, config: { exigir_2fa_admin_cliente: true } /* D-014: el 2FA del administrador del cliente es obligatorio por defecto */,
     tokens: {}, refresh: {}, ultimoToken: null, bitacora: [], supers: new Set(), perfil,
   };
   const emp = (id, nombre, nit, estado) => S.empresas.push({ id, nombre, nit_registro: nit, logo_path: null, estado, motivo_pausa: null, pausada_en: null, pausada_por: null, creada_en: '2026-11-10T10:00:00Z', actualizado_en: '2026-11-10T10:00:00Z' });
@@ -38,10 +39,10 @@ function reiniciar(perfil = 'base') {
   const factor = () => [{ id: uuid(), factor_type: 'totp', status: 'verified', friendly_name: 'Portal', created_at: ahora(), updated_at: ahora() }];
   const sid = usuario('super@websourcing.test', 'Super Admin Prueba', { factores: factor() }); S.supers.add(sid);
   const nid = usuario('super-nuevo@websourcing.test', 'Super Nuevo'); S.supers.add(nid);
-  miembro(usuario('admin@cliente.test', 'Admina Prueba'), E.A, 'admin_cliente');
+  miembro(usuario('admin@cliente.test', 'Admina Prueba', { factores: factor() }), E.A, 'admin_cliente'); // con su código ya configurado
   miembro(usuario('equipo@cliente.test', 'Equipo Uno'), E.A, 'equipo');
   miembro(usuario('equipo-dinero@cliente.test', 'Equipo Con Dinero'), E.A, 'equipo', { ver_dinero: true });
-  miembro(usuario('pausada@servicios.test', 'Usuaria Pausada'), E.B, 'admin_cliente');
+  miembro(usuario('pausada@servicios.test', 'Usuaria Pausada', { factores: factor() }), E.B, 'admin_cliente');
   miembro(usuario('quitado@cliente.test', 'Persona Quitada'), E.A, 'equipo', { quitado_en: '2026-11-12T10:00:00Z' });
   miembro(usuario('bloqueado@cliente.test', 'Persona Bloqueada'), E.A, 'equipo', { bloqueado: true });
   miembro(usuario('global@cliente.test', 'Bloqueo Global', { bloqueadoGlobal: true }), E.A, 'equipo');
@@ -59,7 +60,8 @@ function reiniciar(perfil = 'base') {
   sembrarProyectos(S);
   revdocs.sembrar(S, perfil);
   sembrarDinero(S, E); // Módulo 4: contratos, cuotas, abonos, facturas (ver dinero.mjs)
-  TM.sembrar(S, { usuario, miembro, emp }); // tickets y mantenimiento (tests/mock-supabase/tickets-mant.mjs)
+  TM.sembrar(S, { usuario, miembro, emp });
+  ESP.sembrar(S); // ahorro de espacio (SC-5): cupo, enlaces de video y archivados // tickets y mantenimiento (tests/mock-supabase/tickets-mant.mjs)
 }
 reiniciar();
 
@@ -148,6 +150,7 @@ function leerTabla(tabla, q, params) {
   }
   if (tabla === 'invitaciones') return filtrar(S.invitaciones.filter((i) => esSuper || (admin && i.empresa_id === eid)), params).map(sinSecretos);
   if (tabla === 'preferencias_usuario') return filtrar(Object.values(S.preferencias).filter((p) => p.user_id === c.user_id), params);
+  const esp = ESP.leer(S, tabla, c); if (esp) return filtrar(esp, params);
   const tm = TM.leer(S, tabla, c);
   if (tm) return filtrar(tm, params);
   return leerTablaDinero(S, tabla, c, params, filtrar) ?? [];
@@ -175,7 +178,14 @@ function rpc(nombre, a, q, res) {
   if (nombre === 'mi_contexto') return contexto(q);
   const falla = (cod) => { dbErr(res, cod); return undefined; };
   if (c.estado === 'sin_sesion') return falla('no_autenticado');
-  if (FUNCIONES_S2.has(nombre)) return funcionS2(S, nombre, body_, c, falla);
+  if (FUNCIONES_S2.has(nombre)) {
+    const r = funcionS2(S, nombre, body_, c, falla);
+    if (!r || (nombre !== 'panel_super_admin' && nombre !== 'inicio_cliente')) return r;
+    // Panel e inicio suman dinero y tickets (igual que la base integrada).
+    const din = resumenParaPanel(S, c); const abiertos = TM.ticketsAbiertos(S, c);
+    if (nombre === 'inicio_cliente') return { ...r, pagos_vencidos: din.pagos_vencidos, proximo_pago: din.proximo_pago, comprobantes_en_revision: din.comprobantes_en_revision, tickets_abiertos: abiertos };
+    return { ...r, totales: { ...r.totales, pagos_vencidos: din.pagos_vencidos ?? 0, comprobantes_en_revision: din.comprobantes_en_revision ?? 0, tickets_abiertos: abiertos }, atencion: [...r.atencion, ...din.atencion].sort((x, y) => x.prioridad.localeCompare(y.prioridad)) };
+  }
   if (revdocs.esFuncionRevDocs(nombre)) return revdocs.rpc(S, nombre, a, c, S.reqActual, falla);
   if (c.estado === 'ver_como') return falla('ver_como_solo_lectura');
   const esSuper = c.estado === 'super_admin'; const admin = c.estado === 'activo' && c.rol === 'admin_cliente';
@@ -242,7 +252,8 @@ function rpc(nombre, a, q, res) {
       p.bloqueado = a.p_bloqueado ?? true; return null;
     }
     default: {
-      let r = TM.rpc(S, nombre, a, c, falla);
+      let r = ESP.rpc(S, nombre, a, c, falla);
+      if (r === ESP.NO_ES_ESPACIO) r = TM.rpc(S, nombre, a, c, falla);
       if (r === TM.NO_ES_MIO) r = rpcDinero(S, nombre, a, c, falla);
       return r === NO_ES_DINERO ? falla('datos_invalidos') : r;
     }
@@ -271,10 +282,12 @@ const servidor = http.createServer(async (req, res) => {
   S.bitacora.push({ m: req.method, ruta });
 
   // ---- control para las pruebas ----
+  if (ruta === '/__espacio') { if (req.method === 'POST') { const { empresa_id, usado_bytes, cupo_bytes } = body; if (usado_bytes !== undefined) S.esp.usado[empresa_id] = usado_bytes; if (cupo_bytes !== undefined) S.esp.cupos[empresa_id] = cupo_bytes; } return json(res, 200, S.esp); }
   if (ruta === '/__tm') return json(res, 200, TM.estado(S));
   if (ruta === '/__reset') { for (const k of Object.keys(FRENO)) delete FRENO[k]; reiniciar(url.searchParams.get('perfil') || 'base'); return json(res, 200, { ok: true }); }
   if (ruta === '/__estado') return json(res, 200, { ultimoToken: S.ultimoToken, preferencias: S.preferencias, empresas: S.empresas, miembros: S.miembros, perfiles: S.perfiles, exigir2fa: S.config.exigir_2fa_admin_cliente, invitaciones: S.invitaciones.map(sinSecretos), bitacora: S.bitacora.length, proyectos: S.proyectos, hitos: S.hitos, sprints: S.sprints, retrasos: S.retrasos, cambios: S.cambios, historial: S.historial, registro: S.registro, rechazos: S.rechazos, verComo: S.verComo, consumoP: S.consumoP, consumoS: S.consumoS, pagos: S.pagos, p1: S.p1, p2: S.p2, p3: S.p3 });
   if (ruta === '/__vaciar_proyectos') { S.proyectos = []; S.hitos = []; S.sprints = []; S.historial = []; S.retrasos = []; return json(res, 200, { ok: true }); }
+  if (ruta === '/__sin_factor') { const u = S.usuarios[body.correo]; if (u) u.factores = []; return json(res, 200, { ok: !!u }); } // deja a esa persona sin código configurado
   if (ruta === '/__confirmar') { const u = S.usuarios[url.searchParams.get('correo')]; if (u) u.confirmado = true; return json(res, 200, { ok: !!u }); }
   if (ruta === '/__ver_como') {
     const sup = [...S.supers][0];

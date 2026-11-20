@@ -480,12 +480,9 @@ test.describe('Menú lateral y guardia', () => {
     await redirigeASinPermiso(page, '/cliente/inicio');
   });
 
-  test('las pantallas ajenas siguen en "Pronto"', async ({ page }) => {
+  test('el menú del cliente ya no tiene módulos "Pronto"', async ({ page }) => {
     await entrarCliente(page);
     const menu = page.getByRole('navigation', { name: 'Menú principal' });
-    await expect(menu.getByRole('link', { name: /Revisiones/ })).toContainText('Pronto');
-    await expect(menu.getByRole('link', { name: /Tickets/ })).toContainText('Pronto');
-    await expect(menu.getByRole('link', { name: /Documentos/ })).toContainText('Pronto');
-    await expect(menu.getByRole('link', { name: /Inicio/ })).not.toContainText('Pronto');
+    for (const nombre of [/Revisiones/, /Tickets/, /Documentos/, /Inicio/]) await expect(menu.getByRole('link', { name: nombre })).not.toContainText('Pronto');
   });
 });

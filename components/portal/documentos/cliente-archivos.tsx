@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogClose, DialogContent } from '@/components/ui/dialog';
 import { Field, Input } from '@/components/ui/form';
 import { PageHeader } from '@/components/ds/page';
+import { EspacioDeMiEmpresa } from '../espacio/barra';
 import { EstadoCargando, EstadoError } from '@/components/ds/states';
 import { useCargar } from '@/lib/app/datos';
 import { crearClienteNavegador } from '@/lib/supabase/client';
@@ -68,6 +69,7 @@ export function ArchivosCliente() {
   return (
     <>
       <PageHeader titulo="Archivos de la empresa" descripcion="Sube aquí lo que necesitamos para tu proyecto: logo, textos, fotos, bases de datos. Solo lo ven tu empresa y Websourcing." />
+      <EspacioDeMiEmpresa />
       <NavDocumentos activa="archivos" />
       <Alert variant="info" className="mb-4" title="Accesos y claves">Este portal no guarda claves ni contraseñas. Si necesitamos accesos, te indicaremos cómo entregarlos de forma segura.</Alert>
       {a.soloLectura && <Alert className="mb-4" variant="info" title='Modo "ver como": solo lectura'>Desde aquí no se sube ni se borra nada.</Alert>}

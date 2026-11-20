@@ -13,8 +13,8 @@ import { useCargar } from '@/lib/app/datos';
 import { useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import type { PrioridadTicket, TipoTicket } from '@/lib/supabase/tipos-tickets-mant';
-import { SelectorAdjuntos, subirAdjuntos } from './adjuntos';
-import { AVISO_ACCESO, MAX_ADJUNTOS, ejecutar } from './comunes';
+import { CampoLinkVideo, SelectorAdjuntos, guardarLinkVideo, subirAdjuntos } from './adjuntos';
+import { AVISO_ACCESO, MAX_ADJUNTOS, ejecutar, enlaceValido } from './comunes';
 import { leerProyectos } from './lecturas';
 
 const TIPOS: { id: TipoTicket; titulo: string; icono: React.ReactNode; texto: string }[] = [
@@ -33,6 +33,7 @@ export function TicketNuevoReal() {
   const [texto, setTexto] = React.useState('');
   const [proy, setProy] = React.useState('');
   const [archivos, setArchivos] = React.useState<File[]>([]);
+  const [link, setLink] = React.useState('');
   const [intento, setIntento] = React.useState(false);
   const [enviando, setEnviando] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -40,13 +41,19 @@ export function TicketNuevoReal() {
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault(); setIntento(true); setError(null);
     if (titulo.trim().length < 3 || texto.trim().length < 10) return;
+    if (link.trim() !== '' && !enlaceValido(link.trim())) return;
     setEnviando('Creando tu ticket…');
     const r = await ejecutar('crear_ticket', () => crearTicket(crearClienteNavegador(), { p_tipo: tipo, p_titulo: titulo.trim(), p_detalle: texto.trim(), p_prioridad: pri, p_proyecto_id: proy || null }));
     if (!r.ok || !r.data) { setEnviando(null); setError(r.ok ? 'No pudimos crear el ticket. Intenta de nuevo.' : r.mensaje); return; }
     let fallidos: string[] = [];
     if (archivos.length) fallidos = await subirAdjuntos(r.data.ticket_id, archivos, null, (n, t) => setEnviando(`Subiendo archivo ${n} de ${t}…`));
+    if (link.trim()) {
+      setEnviando('Guardando el link de video…');
+      const l = await guardarLinkVideo(r.data.ticket_id, link, null);
+      if (!l.ok) fallidos.push('el link de video');
+    }
     avisar(fallidos.length
-      ? `Ticket creado, pero no pudimos subir: ${fallidos.join(', ')}. Puedes adjuntarlos de nuevo desde el ticket.`
+      ? `Ticket creado, pero no pudimos guardar: ${fallidos.join(', ')}. Puedes agregarlo de nuevo desde el ticket.`
       : r.data.fuera_de_plan ? 'Ticket creado. Antes de trabajarlo, el dueño de Websourcing decide si tiene costo.' : 'Ticket creado. Te responderemos dentro del tiempo pactado.');
     ir(`/cliente/tickets/${r.data.ticket_id}`);
   };
@@ -86,9 +93,10 @@ export function TicketNuevoReal() {
           </div>
           <Field label="Título" htmlFor="t-titulo" error={intento && titulo.trim().length < 3 ? 'Escribe un título corto.' : undefined}><Input id="t-titulo" maxLength={160} value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Ejemplo: no me llega el correo de confirmación" /></Field>
           <Field label="Detalle" htmlFor="t-texto" error={intento && texto.trim().length < 10 ? 'Cuéntanos un poco más (qué pasó, dónde y cuándo).' : undefined}><Textarea id="t-texto" rows={5} maxLength={10000} value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="¿Qué pasó? ¿Qué esperabas que pasara?" /></Field>
-          <Field label="Adjuntos (opcional)" htmlFor="t-adj" hint="Pantallazo, video o audio. Máximo 50 MB por archivo.">
+          <Field label="Adjuntos (opcional)" htmlFor="t-adj" hint="Pantallazo, video o audio. Máximo 50 MB por archivo (videos: 20 MB).">
             <SelectorAdjuntos id="t-adj" archivos={archivos} onCambio={setArchivos} cupo={MAX_ADJUNTOS} />
           </Field>
+          <CampoLinkVideo id="t-link" valor={link} onCambio={setLink} intento={intento} />
           {error && <Alert variant="danger" title="No pudimos crear el ticket">{error}</Alert>}
           <div className="flex flex-wrap gap-3">
             <Button type="submit" size="lg" disabled={!!enviando}><Send />{enviando ?? 'Crear ticket'}</Button>

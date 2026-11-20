@@ -18,8 +18,8 @@ import { cn, fecha, fechaHora } from '@/lib/utils';
 import type { AreaEquipo, TicketAdjuntoFila, TicketMensajeFila } from '@/lib/supabase/tipos-tickets-mant';
 import { usePortal } from '../contexto';
 import { Confirmar } from '../invitar';
-import { AdjuntoVista, SelectorAdjuntos, subirAdjuntos } from './adjuntos';
-import { AREAS, AVISO_ACCESO, ESTADO_TXT, Estrellas, MAX_ADJUNTOS, MOTIVO_FUERA_DE_PLAN, PRIORIDAD_TXT, SemaforoReal, TIPO_TXT, dinero, ejecutar, estaAbierto, numeroDe, prioridadDe } from './comunes';
+import { AdjuntoVista, CampoLinkVideo, EnlacesVideo, SelectorAdjuntos, guardarLinkVideo, subirAdjuntos } from './adjuntos';
+import { AREAS, AVISO_ACCESO, ESTADO_TXT, Estrellas, MAX_ADJUNTOS, MOTIVO_FUERA_DE_PLAN, PRIORIDAD_TXT, SemaforoReal, TIPO_TXT, dinero, ejecutar, enlaceValido, estaAbierto, numeroDe, prioridadDe } from './comunes';
 import { GestionTicket } from './gestion';
 import { leerDetalle } from './lecturas';
 
@@ -36,6 +36,7 @@ export function TicketDetalleReal({ id, modo }: { id: string; modo: 'cliente' | 
   const [area, setArea] = React.useState<AreaEquipo>('Desarrollo');
   const [interno, setInterno] = React.useState(false);
   const [archivos, setArchivos] = React.useState<File[]>([]);
+  const [link, setLink] = React.useState('');
   const [enviando, setEnviando] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [estrellas, setEstrellas] = React.useState(0);
@@ -47,7 +48,7 @@ export function TicketDetalleReal({ id, modo }: { id: string; modo: 'cliente' | 
   const cabecera = (titulo: string) => <PageHeader titulo={titulo} acciones={<Button variant="ghost" asChild><Enlace to={volver}><ArrowLeft />Volver</Enlace></Button>} />;
   if (estado === 'cargando') return <><PageHeader titulo="Ticket" /><EstadoCargando /></>;
   if (estado === 'error' || !datos) return <><PageHeader titulo="Ticket" /><EstadoError onReintentar={() => recargar()} /></>;
-  const { ticket: t, mensajes, adjuntos } = datos;
+  const { ticket: t, mensajes, adjuntos, enlaces } = datos;
   // Mensaje neutro: no distingue entre "no existe" y "no es tuyo".
   if (!t) return <>{cabecera('Ticket no encontrado')}<SinPermiso texto={admin ? 'Este ticket no existe.' : 'Este ticket no existe o no es de tu empresa. Si esperabas verlo, pídele acceso al administrador.'} inicio={volver} /></>;
 
@@ -58,13 +59,15 @@ export function TicketDetalleReal({ id, modo }: { id: string; modo: 'cliente' | 
 
   const enviar = async () => {
     if (!msg.trim()) return;
+    if (link.trim() !== '' && !enlaceValido(link.trim())) { setError('El enlace de video debe empezar por https:// y no tener espacios.'); return; }
     setEnviando(true); setError(null);
     const r = await ejecutar('responder_ticket', () => responderTicket(crearClienteNavegador(), { p_ticket_id: t.id, p_texto: msg.trim(), p_interno: admin ? interno : false, p_area: admin && !interno ? area : null }));
     if (!r.ok) { setEnviando(false); setError(r.mensaje); return; }
     let fallidos: string[] = [];
     const mid = (r.data as { mensaje_id?: string } | null)?.mensaje_id ?? null;
     if (archivos.length) fallidos = await subirAdjuntos(t.id, archivos, mid);
-    setMsg(''); setArchivos([]); setEnviando(false);
+    if (link.trim()) { const l = await guardarLinkVideo(t.id, link, mid); if (!l.ok) fallidos.push('el link de video'); }
+    setMsg(''); setArchivos([]); setLink(''); setEnviando(false);
     avisar(fallidos.length ? `Mensaje enviado, pero no pudimos subir: ${fallidos.join(', ')}.` : interno ? 'Nota interna guardada (el cliente no la ve).' : 'Mensaje enviado.');
     recargar(true);
   };
@@ -147,6 +150,7 @@ export function TicketDetalleReal({ id, modo }: { id: string; modo: 'cliente' | 
                   return burbuja(m.id, q, titulo, m.retirado_en ? 'Texto retirado por Websourcing.' : m.texto, m.creado_en, adjDe(m.id), retirar);
                 })}
               </ul>
+              <EnlacesVideo enlaces={enlaces} />
             </CardContent>
             {!cerrado ? (
               <div className="border-t border-border p-4 sm:p-6">
@@ -158,6 +162,7 @@ export function TicketDetalleReal({ id, modo }: { id: string; modo: 'cliente' | 
                 )}
                 <Field label={admin ? `Firmará: ${interno ? 'Nota interna' : 'Equipo Websourcing · ' + area}` : 'Escribe tu respuesta'} htmlFor="tk-msg"><Textarea id="tk-msg" value={msg} maxLength={10000} onChange={(e) => setMsg(e.target.value)} disabled={lectura} placeholder="Escribe aquí…" /></Field>
                 {cupo > 0 && <div className="mt-3"><SelectorAdjuntos id="tk-adj" archivos={archivos} onCambio={setArchivos} cupo={cupo} /></div>}
+                <div className="mt-3"><CampoLinkVideo id="tk-link" valor={link} onCambio={setLink} intento deshabilitado={lectura} /></div>
                 <div className="mt-3"><Button onClick={() => void enviar()} disabled={lectura || enviando || !msg.trim()}><Send />{enviando ? 'Enviando…' : 'Enviar'}</Button></div>
               </div>
             ) : <p className="border-t border-border p-4 text-sm text-muted-foreground sm:px-6">Este ticket está cerrado. Si necesitas algo más, crea uno nuevo.</p>}

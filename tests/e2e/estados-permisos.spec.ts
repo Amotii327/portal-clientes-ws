@@ -130,27 +130,33 @@ test.describe('Sin permiso', () => {
   });
 });
 
-test.describe('Pantallas de muestra', () => {
-  test('quedan detrás del login y marcadas "Disponible en el próximo sprint"', async ({ page }) => {
+// Ya no queda ninguna pantalla de muestra: todos los módulos del menú son reales. Esta prueba lo vigila (cada uno tiene su spec propio).
+test.describe('Menú sin pantallas de muestra', () => {
+  test('cliente: cada módulo del menú abre y ninguno dice "Pronto" ni "Disponible en el próximo sprint"', async ({ page }) => {
     await page.goto('/cliente/dinero');
     await expect(page).toHaveURL(/\/entrar/);
     await entrarCliente(page, 'equipo-dinero@cliente.test');
-    // Revisiones y Documentos ya son reales (sprint 3): ver tests/e2e/revisiones.spec.ts y documentos.spec.ts.
-    for (const ruta of ['/cliente/tickets']) {
+    const menu = page.getByRole('navigation', { name: 'Menú principal' });
+    await expect(menu).not.toContainText('Pronto');
+    for (const ruta of ['/cliente/revisiones', '/cliente/dinero', '/cliente/tickets', '/cliente/documentos']) {
       await page.goto(ruta);
-      await expect(page.getByText('Disponible en el próximo sprint')).toBeVisible();
+      await expect(page).toHaveURL(new RegExp(ruta));
+      await expect(page.getByText('Disponible en el próximo sprint')).toHaveCount(0);
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     }
-    // navegar entre pantallas de muestra no pierde la sesión
-    await page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: /Documentos/ }).click();
+    // navegar entre módulos no pierde la sesión
+    await menu.getByRole('link', { name: /Documentos/ }).click();
     await expect(page).toHaveURL(/\/cliente\/documentos/);
-    await expect(page.getByText('Disponible en el próximo sprint')).toBeVisible();
   });
 
-  test('el super admin ve las suyas con el mismo aviso', async ({ page }) => {
+  test('super admin: cada módulo del menú abre y ninguno dice "Pronto"', async ({ page }) => {
     await entrarSuper(page);
-    for (const ruta of ['/admin/tickets', '/admin/mantenimiento']) {
+    await expect(page.getByRole('navigation', { name: 'Menú principal' })).not.toContainText('Pronto');
+    for (const ruta of ['/admin/proyectos', '/admin/panel', '/admin/aprobaciones', '/admin/documentos', '/admin/archivos', '/admin/espacio', '/admin/finanzas', '/admin/tickets', '/admin/mantenimiento', '/admin/registro']) {
       await page.goto(ruta);
-      await expect(page.getByText('Disponible en el próximo sprint')).toBeVisible();
+      await expect(page).toHaveURL(new RegExp(ruta));
+      await expect(page.getByText('Disponible en el próximo sprint')).toHaveCount(0);
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     }
   });
 });

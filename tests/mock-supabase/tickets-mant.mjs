@@ -21,7 +21,7 @@ export function sembrar(S, { usuario, miembro, emp }) {
   const uAdmin = S.usuarios['admin@cliente.test'].id; const uEq = S.usuarios['equipo@cliente.test'].id; const uDin = S.usuarios['equipo-dinero@cliente.test'].id;
   const uTodos = usuario('equipo-todos@cliente.test', 'Equipo Con Todos');
   miembro(uTodos, A, 'equipo', { ver_todos_tickets: true });
-  const uC = usuario('admin@otra.test', 'Admin Tercera');
+  const uC = usuario('admin@otra.test', 'Admin Tercera', { factores: [{ id: uuid(), factor_type: 'totp', status: 'verified', friendly_name: 'Portal', created_at: ahora(), updated_at: ahora() }] });
   miembro(uC, C, 'admin_cliente');
   const tm = (S.tm = { tickets: [], mensajes: [], adjuntos: [], archivos: {}, planes: [], historial: [], bolsas: [], avisos: [], horas: [], notas: [], garantias: [], proyectos: S.proyectos, rechazos: [], base: [], n: { [A]: 0, [C]: 0 } });
   tm.base = ['basico', 'estandar', 'premium'].map((plan, i) => ({ plan, parametros: { horas_mes: [4, 8, 16][i], acumular_horas: false, revisiones_por_semana: [1, 2, 2][i], copias_frecuencia: 'diaria', parches_frecuencia: ['mensual', 'quincenal', 'semanal'][i], auditoria: i === 2, auditoria_cada_meses: i === 2 ? 3 : null, reuniones_por_mes: i, reporte_tipo: 'resumido', servidores_incluidos: false, incluye: ['correccion_errores', 'copias_seguridad', 'monitoreo'] }, nota: 'Valores de partida.', actualizado_en: ahora(), actualizado_por: null }));
@@ -148,6 +148,7 @@ export function rpc(S, nombre, a, c, falla) {
     case 'preparar_adjunto_ticket': {
       const t = ticket(a.p_ticket_id); if (!t) return falla('ticket_no_encontrado');
       if (!MIMES.includes(a.p_mime) || !(a.p_tamano_bytes > 0) || a.p_tamano_bytes > 52428800) return falla('adjunto_invalido');
+      if (String(a.p_mime).startsWith('video/') && a.p_tamano_bytes > 20971520) return falla('video_demasiado_grande'); // SC-5: un video pesa máximo 20 MB
       if (tm.adjuntos.filter((x) => x.ticket_id === t.id).length >= 30) return falla('demasiados_adjuntos');
       const id = uuid(); const ruta = `${t.empresa_id}/${t.id}/${id}-${String(a.p_nombre).replace(/[^\w.-]/g, '_')}`;
       tm.adjuntos.push({ id, empresa_id: t.empresa_id, ticket_id: t.id, mensaje_id: a.p_mensaje_id ?? null, subido_por: c.user_id, nombre_original: a.p_nombre, mime: a.p_mime, tamano_bytes: a.p_tamano_bytes, storage_path: ruta, creado_en: ahora() });
@@ -327,3 +328,10 @@ export async function almacenamiento(S, req, res, ruta, c) {
 
 /** Estado interno para las pruebas (sin los bytes de los archivos). */
 export const estado = (S) => ({ ...S.tm, archivos: Object.keys(S.tm.archivos) });
+
+/** Tickets no cerrados que esa persona puede ver (lo que suman panel_super_admin() e inicio_cliente()). */
+export function ticketsAbiertos(S, c) {
+  const esSuper = c.estado === 'super_admin';
+  const ve = (t) => esSuper || (t.empresa_id === c.empresa?.id && (c.rol === 'admin_cliente' || c.permisos?.ver_todos_tickets || t.creado_por === c.user_id));
+  return S.tm.tickets.filter((t) => t.estado !== 'cerrado' && ve(t)).length;
+}

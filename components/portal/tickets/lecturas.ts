@@ -1,4 +1,6 @@
 import { crearClienteNavegador } from '@/lib/supabase/client';
+import { enlacesVideoDeTicket } from '@/lib/portal/acciones-espacio';
+import type { EnlaceVideoTicket } from '@/lib/supabase/database.types';
 import { adjuntosDeTicket, listarTickets, mensajesDeTicket, semaforoDeTickets } from '@/lib/portal/acciones-tickets';
 import type { TicketAdjuntoFila, TicketFila, TicketMensajeFila, TicketSemaforoFila, HoraRegistradaFila } from '@/lib/supabase/tipos-tickets-mant';
 
@@ -42,6 +44,7 @@ export interface DatosDetalle {
   ticket: TicketFila | null;
   mensajes: TicketMensajeFila[];
   adjuntos: TicketAdjuntoFila[];
+  enlaces: EnlaceVideoTicket[];
   semaforo: TicketSemaforoFila | undefined;
   empresa: string;
   creador: string;
@@ -53,16 +56,17 @@ export async function leerDetalle(id: string, esSuper: boolean): Promise<DatosDe
   const c = crearClienteNavegador();
   const t = ok<TicketFila[]>(await (desde('tickets').select('*').eq('id', id) as Lista<TicketFila>));
   const ticket = t[0] ?? null;
-  if (!ticket) return { ticket: null, mensajes: [], adjuntos: [], semaforo: undefined, empresa: '', creador: '', proyecto: '', horas: [] };
-  const [m, a, s, emp, per, pro, hor] = await Promise.all([
+  if (!ticket) return { ticket: null, mensajes: [], adjuntos: [], enlaces: [], semaforo: undefined, empresa: '', creador: '', proyecto: '', horas: [] };
+  const [m, a, s, emp, per, pro, hor, enl] = await Promise.all([
     mensajesDeTicket(c, id), adjuntosDeTicket(c, id), semaforoDeTickets(c),
     suave<{ nombre: string }>(desde('empresas').select('nombre').eq('id', ticket.empresa_id)),
     suave<{ perfiles: { nombre: string } | null }>(desde('miembros').select('perfiles(nombre)').eq('user_id', ticket.creado_por)),
     ticket.proyecto_id ? suave<{ nombre: string }>(desde('proyectos').select('nombre').eq('id', ticket.proyecto_id)) : Promise.resolve([]),
     esSuper ? suave<HoraRegistradaFila>(desde('horas_registradas').select('*').eq('ticket_id', id).order('registrado_en', { ascending: false })) : Promise.resolve([] as HoraRegistradaFila[]),
+    enlacesVideoDeTicket(c, id).then((r) => r.data ?? [], () => [] as EnlaceVideoTicket[]),
   ]);
   return {
-    ticket, mensajes: ok(m), adjuntos: ok(a),
+    ticket, mensajes: ok(m), adjuntos: ok(a), enlaces: enl,
     semaforo: ok(s).find((x) => x.ticket_id === id),
     empresa: emp[0]?.nombre ?? '', creador: per[0]?.perfiles?.nombre ?? '', proyecto: pro[0]?.nombre ?? '', horas: hor,
   };

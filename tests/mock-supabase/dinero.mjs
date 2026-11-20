@@ -291,3 +291,26 @@ export function storageDinero(S, req, res, url, c, jsonBase) {
   }
   return json(res, 405, { message: 'no soportado en el simulado' });
 }
+
+// ---------- lo que el panel del super admin y el inicio del cliente suman de este módulo ----------
+/** Igual que panel_super_admin() / inicio_cliente() de la base integrada: cuotas vencidas, comprobantes en revisión y la cuota más próxima. */
+export function resumenParaPanel(S, c) {
+  const d = S.d;
+  const propias = (f) => esSA(c) || f.empresa_id === c.empresa?.id;
+  const nombreEmp = (id) => S.empresas.find((e) => e.id === id)?.nombre ?? '';
+  const pagos = d.pagos.filter(propias).map((p) => vistaPago(d, p));
+  const vencidos = pagos.filter((p) => p.estado === 'vencido');
+  const enRev = d.comprobantes.filter((x) => x.estado === 'en_revision' && propias(x));
+  if (!puedeVer(c)) return { pagos_vencidos: null, comprobantes_en_revision: null, proximo_pago: null, atencion: [] };
+  const abiertos = pagos.filter((p) => p.estado !== 'pagado').sort((a, b) => (a.vence_el < b.vence_el ? -1 : 1));
+  const prox = abiertos[0];
+  const nombreProy = (id) => d.proyectos.find((x) => x.proyecto_id === id)?.nombre ?? S.proyectos?.find((x) => x.id === id)?.nombre ?? '';
+  const atencion = esSA(c) ? [
+    ...vencidos.map((p) => ({ tipo: 'pago_vencido', prioridad: '1', empresa_id: p.empresa_id, empresa_nombre: nombreEmp(p.empresa_id), proyecto_id: p.proyecto_id, proyecto_nombre: nombreProy(p.proyecto_id), pago_id: p.pago_id, concepto: p.concepto, pendiente: p.pendiente, moneda: p.moneda, vence_el: p.vence_el, dias_de_atraso: -p.dias_para_vencer })),
+    ...enRev.map((x) => { const p = d.pagos.find((q) => q.id === x.pago_programado_id); return { tipo: 'comprobante_en_revision', prioridad: '2', empresa_id: x.empresa_id, empresa_nombre: nombreEmp(x.empresa_id), proyecto_id: p?.proyecto_id ?? '', comprobante_id: x.id, concepto: p?.concepto ?? '', valor: num(x.valor), moneda: p ? d.contratos.find((k) => k.id === p.contrato_id).moneda : 'COP', subido_en: x.creado_en ?? new Date().toISOString() }; }),
+  ] : [];
+  return {
+    pagos_vencidos: vencidos.length, comprobantes_en_revision: enRev.length, atencion,
+    proximo_pago: prox ? { pago_id: prox.pago_id, proyecto_id: prox.proyecto_id, concepto: prox.concepto, pendiente: prox.pendiente, moneda: prox.moneda, vence_el: prox.vence_el, estado: prox.estado } : null,
+  };
+}
