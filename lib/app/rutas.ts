@@ -14,6 +14,9 @@ export function necesita2FA(estado: string | undefined) {
 export function rutaPermitida(ctx: MiContexto, ruta: string): { ok: true } | { ok: false; texto: string } {
   const r = ruta.replace(/\/$/, '') || '/';
   const esSuper = ctx.estado === 'super_admin';
+  if (r.startsWith('/admin') && ctx.estado === 'ver_como') {
+    return { ok: false, texto: 'Estás viendo como el cliente. Para volver a la zona de Websourcing, usa "Salir" en la franja de arriba.' };
+  }
   if (r.startsWith('/admin') && !esSuper) {
     return { ok: false, texto: 'Esta zona es solo para el equipo de Websourcing. Tu cuenta no tiene acceso.' };
   }

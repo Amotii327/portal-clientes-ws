@@ -1,12 +1,13 @@
 'use client';
 import * as React from 'react';
-import { Activity, BellRing, KeyRound, Receipt, ClipboardCheck, FolderOpen, Home, LayoutDashboard, LifeBuoy, LogOut, Menu, Users, Wallet, Wrench, Building2, Banknote, Inbox, EyeOff } from 'lucide-react';
+import { Activity, BellRing, KeyRound, Receipt, ClipboardCheck, FolderOpen, Home, LayoutDashboard, LifeBuoy, LogOut, Menu, Users, Wallet, Wrench, Building2, Banknote, Inbox, EyeOff, FolderKanban } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Enlace, MODO_REAL, ir, useRuta } from '@/lib/router';
 import { cerrarSesion } from '@/lib/app/sesion';
 import { BotonTema } from '@/components/portal/boton-tema';
+import { FranjaVerComo } from '@/components/portal/ver-como';
 import { ROL_LABEL, useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
@@ -39,18 +40,19 @@ function useNav(): Item[] {
     const p = MODO_REAL;
     const lista: Item[] = [
       { to: '/admin/clientes', label: 'Clientes', icon: <Building2 className={ic} /> },
-      { to: '/admin/panel', label: 'Panel general', icon: <LayoutDashboard className={ic} />, pronto: p },
+      { to: '/admin/proyectos', label: 'Proyectos', icon: <FolderKanban className={ic} /> },
+      { to: '/admin/panel', label: 'Panel general', icon: <LayoutDashboard className={ic} /> },
       { to: '/admin/aprobaciones', label: 'Bandeja de aprobaciones', icon: <Inbox className={ic} />, badge: p ? 0 : porRevisar, pronto: p },
       { to: '/admin/finanzas', label: 'Finanzas', icon: <Banknote className={ic} />, pronto: p },
       { to: '/admin/tickets', label: 'Tickets de todos', icon: <LifeBuoy className={ic} />, pronto: p },
       { to: '/admin/mantenimiento', label: 'Mantenimiento', icon: <Wrench className={ic} />, pronto: p },
-      { to: '/admin/registro', label: 'Registro de actividad', icon: <Activity className={ic} />, pronto: p },
+      { to: '/admin/registro', label: 'Registro de actividad', icon: <Activity className={ic} /> },
     ];
-    return p ? lista : [lista[1], lista[0], ...lista.slice(2)];
+    return p ? lista : [lista[2], lista[0], ...lista.slice(3)]; // el prototipo no tiene la lista de proyectos
   }
   const p = MODO_REAL;
   const items: Item[] = [
-    { to: '/cliente/inicio', label: 'Inicio', icon: <Home className={ic} />, pronto: p },
+    { to: '/cliente/inicio', label: 'Inicio', icon: <Home className={ic} /> },
     { to: '/cliente/revisiones', label: 'Revisiones', icon: <ClipboardCheck className={ic} />, badge: p ? 0 : pendientes, pronto: p },
   ];
   if (s.can.verDinero) items.push({ to: '/cliente/dinero', label: 'Dinero', icon: <Wallet className={ic} />, pronto: p });
@@ -111,11 +113,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const esSuper = s.rol === 'super';
   return (
     <div className={cn('flex', ALTO_PANTALLA)}>
-      <aside className={cn('sticky hidden w-64 shrink-0 flex-col border-r border-border bg-surface px-3 py-5 lg:flex', MODO_REAL ? 'top-0 h-dvh' : 'top-11 h-[calc(100dvh-2.75rem)]')}>
-        <Enlace to={esSuper ? '/admin/panel' : '/cliente/inicio'} className="mb-6 block px-3"><Logo /></Enlace>
-        <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{esSuper ? 'Zona de Websourcing' : s.empresa.nombre}</p>
-        <NavList />
-        <Usuario />
+      {/* La columna (fondo y borde) llega hasta abajo en páginas largas; el contenido del menú se queda fijo al hacer scroll. */}
+      <aside className="hidden w-64 shrink-0 border-r border-border bg-surface lg:block" data-testid="menu-lateral">
+        <div className={cn('sticky flex flex-col overflow-y-auto px-3 py-5', MODO_REAL ? 'top-0 h-dvh' : 'top-11 h-[calc(100dvh-2.75rem)]')}>
+          <Enlace to={esSuper ? '/admin/panel' : '/cliente/inicio'} className="mb-6 block px-3"><Logo /></Enlace>
+          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{esSuper ? 'Zona de Websourcing' : s.empresa.nombre}</p>
+          <NavList />
+          <Usuario />
+        </div>
       </aside>
       <div className="min-w-0 flex-1">
         <header className={cn('sticky z-30 flex h-14 items-center gap-3 border-b border-border bg-background/95 px-4 backdrop-blur lg:hidden', MODO_REAL ? 'top-0' : 'top-11')}>
@@ -133,7 +138,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <p className="text-sm text-muted-foreground">{esSuper ? 'Zona del super administrador' : <><span className="text-foreground">{s.empresa.nombre}</span> · {ROL_LABEL[s.rol]}</>}</p>
           <div className="flex items-center gap-3 text-muted-foreground">{MODO_REAL && <BotonTema />}<BellRing className="size-5" aria-label="Avisos" /></div>
         </div>
-        {s.verComo && s.rol !== 'super' && (
+        {MODO_REAL && <FranjaVerComo />}
+        {!MODO_REAL && s.verComo && s.rol !== 'super' && (
           <div className="flex flex-wrap items-center gap-3 border-b border-warning/40 bg-warning/10 px-4 py-2 text-sm md:px-8">
             <EyeOff className="size-4 text-warning" aria-hidden />
             <span><strong>Estás viendo como {s.empresa.nombre}</strong> · solo lectura. Queda en el registro.</span>

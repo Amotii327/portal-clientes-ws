@@ -23,6 +23,7 @@ function aContextoReal(c: MiContexto): ContextoReal {
     nombreEmpresa: c.empresa?.nombre ?? null,
     permisos: p ? { aprobar: p.aprobar, verDinero: p.ver_dinero, verTodosTickets: p.ver_todos_tickets, subirArchivos: p.subir_archivos } : null,
     tema: c.tema === 'oscura' ? 'oscuro' : 'claro',
+    verComo: c.estado === 'ver_como' && c.ver_como ? { empresaNombre: c.ver_como.empresa_nombre, rol: c.ver_como.rol, venceEn: c.ver_como.vence_en } : null,
   };
 }
 
@@ -34,7 +35,7 @@ function Interior({ contexto, children }: { contexto: MiContexto; children: Reac
       {permiso.ok ? children : (
         <>
           <PageHeader titulo="Sin permiso" />
-          <SinPermiso texto={permiso.texto} inicio={contexto.estado === 'super_admin' ? '/admin/clientes' : '/cliente/inicio'} />
+          <SinPermiso texto={permiso.texto} inicio={contexto.estado === 'super_admin' ? '/admin/panel' : '/cliente/inicio'} />
         </>
       )}
     </Shell>
@@ -44,7 +45,7 @@ function Interior({ contexto, children }: { contexto: MiContexto; children: Reac
 /** Zona privada con acceso normal (super admin o miembro activo): menú, tema y pantallas. */
 export function ZonaPrivada({ contexto, children }: { contexto: MiContexto; children: React.ReactNode }) {
   const guardarTema = React.useCallback(async (t: Tema) => {
-    if (!contexto.user_id) return;
+    if (!contexto.user_id || contexto.estado === 'ver_como') return; // en "ver como" nada se escribe
     const { error } = await crearClienteNavegador()
       .from('preferencias_usuario')
       .upsert({ user_id: contexto.user_id, tema: t === 'oscuro' ? 'oscura' : 'clara' });

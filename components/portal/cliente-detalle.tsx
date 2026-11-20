@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import { ArrowLeft, Ban, MailPlus, PauseCircle, PlayCircle, ShieldOff, UserMinus } from 'lucide-react';
+import { ArrowLeft, Ban, FolderPlus, MailPlus, PauseCircle, PlayCircle, ShieldOff, UserMinus } from 'lucide-react';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Table, TBody, TD, TH, THead, TR } from '@/components/ui/table';
 import { PageHeader, Seccion } from '@/components/ds/page';
 import { EstadoCargando, EstadoError, SinPermiso } from '@/components/ds/states';
-import { Enlace } from '@/lib/router';
+import { Enlace, ir } from '@/lib/router';
 import { crearClienteNavegador } from '@/lib/supabase/client';
 import { bloquearMiembro, bloquearUsuario, quitarMiembro, revocarInvitacion } from '@/lib/portal/acciones';
 import { mensajeDeError } from '@/lib/portal/errores';
@@ -17,16 +17,22 @@ import { useStore } from '@/lib/store';
 import { fecha } from '@/lib/utils';
 import { EstadoEmpresaBadge, useCambioDeEstado } from './clientes';
 import { Confirmar, InvitarDialog } from './invitar';
+import { NuevoProyectoDialog } from './proyectos';
+import { BotonVerComo } from './ver-como';
+import { Progress } from '@/components/ui/progress';
+import { ESTADO_PROYECTO } from '@/lib/app/proyectos';
+import type { ResumenProyecto } from '@/lib/supabase/database.types';
 
 async function leerDetalle(id: string) {
   const c = crearClienteNavegador();
-  const [e, f, eq] = await Promise.all([
+  const [e, f, eq, pr] = await Promise.all([
     c.from('empresas').select('*').eq('id', id).maybeSingle(),
     c.from('datos_facturacion').select('razon_social, nit, correo_facturas').eq('empresa_id', id).maybeSingle(),
     leerEquipo(id),
+    c.from('v_proyectos_resumen').select('*').eq('empresa_id', id).order('nombre', { ascending: true }),
   ]);
-  if (e.error || f.error) throw new Error('lectura_fallida');
-  return { empresa: e.data, facturacion: f.data, ...eq };
+  if (e.error || f.error || pr.error) throw new Error('lectura_fallida');
+  return { empresa: e.data, facturacion: f.data, proyectos: (pr.data ?? []) as ResumenProyecto[], ...eq };
 }
 
 type Accion = { tipo: 'quitar' | 'bloquear' | 'bloqueo_global'; m: FilaMiembro };
@@ -36,6 +42,7 @@ export function ClienteDetalleReal({ id }: { id: string }) {
   const { avisar } = useStore();
   const { estado, datos, recargar } = useCargar(() => (esUuid(id) ? leerDetalle(id) : Promise.resolve(null)), [id]);
   const [invitar, setInvitar] = React.useState(false);
+  const [nuevoProyecto, setNuevoProyecto] = React.useState(false);
   const [accion, setAccion] = React.useState<Accion | null>(null);
   const [aCancelar, setACancelar] = React.useState<FilaInvitacion | null>(null);
   const cambio = useCambioDeEstado(() => recargar(true));
@@ -44,7 +51,7 @@ export function ClienteDetalleReal({ id }: { id: string }) {
   if (estado === 'cargando') return <><PageHeader titulo="Cliente" acciones={volver} /><EstadoCargando /></>;
   if (estado === 'error') return <><PageHeader titulo="Cliente" acciones={volver} /><EstadoError onReintentar={() => recargar()} /></>;
   if (!datos || !datos.empresa) return <><PageHeader titulo="Cliente" acciones={volver} /><SinPermiso texto="No encontramos esa empresa." inicio="/admin/clientes" /></>;
-  const { empresa, facturacion, miembros, invitaciones } = datos;
+  const { empresa, facturacion, miembros, invitaciones, proyectos } = datos;
 
   const ejecutar = async () => {
     if (!accion) return;
@@ -80,6 +87,7 @@ export function ClienteDetalleReal({ id }: { id: string }) {
       <PageHeader eyebrow="Cliente" titulo={empresa.nombre} descripcion={`NIT ${empresa.nit_registro} · creada el ${fecha(empresa.creada_en)}`}
         acciones={<>
           {volver}
+          <BotonVerComo empresaId={empresa.id} empresaNombre={empresa.nombre} deshabilitado={empresa.estado === 'pausada'} />
           <Button variant="secondary" onClick={() => setInvitar(true)}><MailPlus />Invitar</Button>
           {empresa.estado === 'activa'
             ? <Button variant="destructive" onClick={() => cambio.pedirPausa(empresa)}><PauseCircle />Pausar empresa</Button>
@@ -94,6 +102,23 @@ export function ClienteDetalleReal({ id }: { id: string }) {
           {facturacion ? <><p className="mt-1 font-medium">{facturacion.razon_social}</p><p className="text-sm text-muted-foreground">NIT {facturacion.nit} · {facturacion.correo_facturas}</p></> : <p className="mt-1 text-sm text-muted-foreground">Sin datos de facturación.</p>}
         </Card>
       </div>
+
+      <Seccion titulo="Proyectos" descripcion="Cada proyecto nace con sus 13 hitos." acciones={empresa.estado === 'activa' ? <Button size="sm" variant="secondary" onClick={() => setNuevoProyecto(true)}><FolderPlus />Nuevo proyecto</Button> : undefined}>
+        <Table>
+          <THead><TR><TH>Proyecto</TH><TH className="w-56">Avance</TH><TH>Plan</TH><TH>Estado</TH></TR></THead>
+          <TBody>
+            {proyectos.length === 0 && <TR><TD colSpan={4} className="text-muted-foreground">Esta empresa todavía no tiene proyectos.</TD></TR>}
+            {proyectos.map((p) => (
+              <TR key={p.proyecto_id} data-testid="fila-proyecto-empresa" className="cursor-pointer" onClick={() => ir(`/admin/proyectos/${empresa.id}/${p.proyecto_id}`)}>
+                <TD><Enlace className="font-medium text-primary-text hover:underline" to={`/admin/proyectos/${empresa.id}/${p.proyecto_id}`}>{p.nombre}</Enlace></TD>
+                <TD><div className="flex items-center gap-3"><Progress className="flex-1" value={p.avance_pct} label={`Avance de ${p.nombre}`} /><span className="w-12 text-right tabular-nums">{Math.round(p.avance_pct * 10) / 10}%</span></div></TD>
+                <TD><Badge variant={p.plan_estado === 'aprobado' ? 'success' : 'warning'}>{p.plan_estado === 'aprobado' ? 'Publicado' : 'Propuesta'}</Badge></TD>
+                <TD><Badge variant={p.estado === 'activo' ? 'info' : 'neutral'}>{ESTADO_PROYECTO[p.estado]}</Badge></TD>
+              </TR>
+            ))}
+          </TBody>
+        </Table>
+      </Seccion>
 
       <Seccion titulo="Personas de la empresa" descripcion="Bloquear o quitar corta el acceso en la siguiente acción. El historial se conserva.">
         <Table>
@@ -140,6 +165,7 @@ export function ClienteDetalleReal({ id }: { id: string }) {
         </Table>
       </Seccion>
 
+      <NuevoProyectoDialog abierto={nuevoProyecto} onCerrar={() => setNuevoProyecto(false)} empresas={[{ id: empresa.id, nombre: empresa.nombre, estado: empresa.estado }]} empresaId={empresa.id} onHecho={(e, p) => ir(`/admin/proyectos/${e}/${p}`)} />
       <InvitarDialog abierto={invitar} onCerrar={() => setInvitar(false)} empresaId={empresa.id} esSuper onHecho={() => recargar(true)} />
       <Confirmar abierto={!!accion} titulo={t?.titulo ?? ''} texto={t?.texto ?? ''} boton={t?.boton ?? ''} tono={accion?.tipo === 'bloquear' && accion.m.bloqueado ? 'default' : 'destructive'} onConfirmar={ejecutar} onCerrar={() => setAccion(null)} />
       <Confirmar abierto={!!aCancelar} titulo="¿Cancelar esta invitación?" texto={`El enlace enviado a ${aCancelar?.correo ?? ''} dejará de funcionar. Puedes invitar de nuevo cuando quieras.`} boton="Sí, cancelar invitación" onConfirmar={cancelar} onCerrar={() => setACancelar(null)} />

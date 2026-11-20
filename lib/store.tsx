@@ -15,6 +15,8 @@ export interface ContextoReal {
   nombreEmpresa: string | null;
   permisos: { aprobar: boolean; verDinero: boolean; verTodosTickets: boolean; subirArchivos: boolean } | null;
   tema: Tema;
+  /** Solo con una sesión de "ver como el cliente" abierta (D-020): todo es de solo lectura. */
+  verComo: { empresaNombre: string; rol: string; venceEn: string } | null;
 }
 
 interface Store {
@@ -111,7 +113,7 @@ export function StoreProvider({ children, real, alCambiarTema }: { children: Rea
     verTodosTickets: esAdmin || rol === 'super' || (rol === 'equipo' && !!perm?.verTodosTickets),
     subirArchivos: esAdmin || (rol === 'equipo' && !!perm?.subirArchivos),
     esAdmin,
-    soloLectura: verComo && rol !== 'super',
+    soloLectura: (verComo || !!real?.verComo) && rol !== 'super',
   };
 
   const value: Store = {
