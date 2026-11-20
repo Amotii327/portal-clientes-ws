@@ -13,4 +13,4 @@
 | Horas estimadas | 1 a 2 |
 | Valor | $0 (proyecto interno) |
 
-**Decisión del dueño (interna):** pendiente · Fecha: ___
+**Decisión del dueño (interna):** regalar (incluida hoy, sin costo) · Fecha: 2026-11-20
