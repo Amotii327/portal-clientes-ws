@@ -76,7 +76,6 @@ export function PantallaActivar() {
     const { data, error: err } = await c.auth.signUp({ email: correo.trim(), password: c1, options: { emailRedirectTo: window.location.href } });
     setEnviando(false);
     if (err) {
-      if (err.code === 'user_already_exists') setModo('entrar');
       setError(mensajeDeAuth(err));
       return;
     }
@@ -140,7 +139,7 @@ export function PantallaActivar() {
           <p className="mt-2 text-muted-foreground">{modo === 'crear' ? 'Escribe el correo al que llegó la invitación y crea tu contraseña. El enlace vence a los 7 días.' : 'Ese correo ya tiene una cuenta. Entra con tu contraseña y seguimos.'}</p>
           <form className="mt-6 space-y-4" onSubmit={crearCuenta} noValidate>
             {errCarga && <Alert variant="danger" title="Algo falló">{errCarga}</Alert>}
-            {error && <Alert variant="danger" title="No pudimos continuar">{error}</Alert>}
+            {error && <Alert variant="danger" title={error.startsWith('Demasiados intentos fallidos') ? 'Cuenta frenada por 15 minutos' : 'No pudimos continuar'}>{error} <Enlace to="/recuperar" className="text-primary-text underline">Recuperar contraseña</Enlace></Alert>}
             <Field label="Correo" htmlFor="inv-correo" hint="Es el correo al que llegó la invitación." error={errCorreo}><Input id="inv-correo" type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} autoComplete="username" aria-invalid={!!errCorreo} /></Field>
             <Clave id="inv-c1" label={modo === 'crear' ? 'Crea tu contraseña' : 'Tu contraseña'} hint={modo === 'crear' ? `Mínimo ${CLAVE_MINIMA} caracteres. No uses una contraseña que ya hayas usado en otro sitio.` : undefined} value={c1} onChange={setC1} error={errClave} autoComplete={modo === 'crear' ? 'new-password' : 'current-password'} />
             {modo === 'crear' && <Clave id="inv-c2" label="Repite tu contraseña" value={c2} onChange={setC2} error={errIgual} autoComplete="new-password" />}

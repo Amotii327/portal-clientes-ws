@@ -15,7 +15,7 @@ export function EntradaLayout({ children }: { children: React.ReactNode }) {
     <div className={cn('grid lg:grid-cols-2', ALTO_PANTALLA)}>
       <div className="relative hidden flex-col justify-between overflow-hidden border-r border-border bg-surface p-10 lg:flex">
         <div className="pointer-events-none absolute -left-24 top-1/3 size-96 rounded-full bg-primary/20 blur-3xl" aria-hidden />
-        <Logo />
+        <div><Logo /></div>
         <div className="relative">
           <h1 className="text-display-xl">Tu proyecto, <span className="text-primary-text">a la vista.</span></h1>
           <p className="mt-4 max-w-md text-lg text-muted-foreground">Entra y mira en qué va, qué tienes que aprobar, cuánto has pagado y qué has pedido. Sin preguntar por correo ni por chat.</p>

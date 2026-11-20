@@ -41,6 +41,7 @@ function reiniciar() {
   miembro(usuario('quitado@cliente.test', 'Persona Quitada'), E.A, 'equipo', { quitado_en: '2026-11-12T10:00:00Z' });
   miembro(usuario('bloqueado@cliente.test', 'Persona Bloqueada'), E.A, 'equipo', { bloqueado: true });
   miembro(usuario('global@cliente.test', 'Bloqueo Global', { bloqueadoGlobal: true }), E.A, 'equipo');
+  usuario('frenada@cliente.test', 'Cuenta Frenada', { frenada: true });
   usuario('sinmembresia@cliente.test', 'Sin Membresia');
   usuario('sinperfil@cliente.test', '', { sinPerfil: true });
   const inv = (token, correo, extra = {}) => S.invitaciones.push({ id: uuid(), empresa_id: E.A, correo, rol: 'equipo', aprobar: false, ver_dinero: false, ver_todos_tickets: false, subir_archivos: false, creada_en: ahora(), vence_en: en(7), usada_en: null, usada_por: null, miembro_id: null, revocada_en: null, invitada_por: null, _token: token, ...extra });
@@ -165,6 +166,12 @@ function rpc(nombre, a, q, res) {
       S.miembros.push(m); inv.usada_en = ahora(); inv.usada_por = u.id;
       return { empresa_id: inv.empresa_id, miembro_id: m.id, rol: inv.rol };
     }
+    case 'revocar_invitacion': {
+      const i = S.invitaciones.find((x) => x.id === a.p_invitacion_id);
+      if (!i || i.usada_en || i.revocada_en) return falla('invitacion_invalida');
+      if (!esSuper && !(admin && i.empresa_id === c.empresa.id)) return falla('no_autorizado');
+      i.revocada_en = ahora(); return null;
+    }
     case 'quitar_miembro':
     case 'bloquear_miembro': {
       const m = S.miembros.find((x) => x.id === a.p_miembro_id);
@@ -222,6 +229,7 @@ const servidor = http.createServer(async (req, res) => {
     const tipo = url.searchParams.get('grant_type');
     if (tipo === 'password') {
       const u = S.usuarios[(body.email || '').toLowerCase()];
+      if (u && u.frenada) return authErr(res, 500, 'unexpected_failure', 'Error running hook URI: cuenta_frenada_temporalmente');
       if (!u || u.password !== body.password) return authErr(res, 400, 'invalid_credentials', 'Invalid login credentials');
       if (!u.confirmado) return authErr(res, 400, 'email_not_confirmed', 'Email not confirmed');
       return json(res, 200, sesion(u));

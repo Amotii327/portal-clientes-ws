@@ -152,6 +152,16 @@ test.describe('Super admin: detalle de una empresa', () => {
     await expect(page.getByTestId('fila-invitacion').filter({ hasText: 'segundo-admin@cliente.test' })).toContainText('Administrador');
   });
 
+  test('cancelar una invitación pendiente, con confirmación', async ({ page }) => {
+    await entrarSuper(page);
+    await page.goto(`/admin/clientes/${A}`);
+    const fila = page.getByTestId('fila-invitacion').filter({ hasText: 'otro@cliente.test' });
+    await fila.getByRole('button', { name: 'Cancelar invitación' }).click();
+    await page.getByRole('button', { name: 'Sí, cancelar invitación' }).click();
+    await expect(page.getByText('Invitación cancelada.')).toBeVisible();
+    await expect(page.getByTestId('fila-invitacion')).toHaveCount(3);
+  });
+
   test('una empresa que no existe se explica', async ({ page }) => {
     await entrarSuper(page);
     await page.goto('/admin/clientes/99999999-9999-4999-8999-999999999999');

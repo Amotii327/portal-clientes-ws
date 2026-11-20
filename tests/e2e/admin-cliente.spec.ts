@@ -73,7 +73,7 @@ test.describe('Admin del cliente: Mi equipo', () => {
     await page.getByRole('button', { name: 'Enviar invitación' }).click();
     const resultado = page.getByTestId('resultado-invitacion');
     await expect(resultado).toContainText('nueva@cliente.test');
-    await expect(resultado).toContainText('saldrá en cuanto activemos el envío de correos');
+    await expect(resultado).toContainText('El envío de correos se activa pronto y por ahora esta invitación no se entrega');
     await expect(page.getByText('Solo desarrollo')).toHaveCount(0);
     await expect(page.getByTestId('enlace-dev')).toHaveCount(0);
     const { ultimoToken } = await estadoMock();
@@ -89,6 +89,32 @@ test.describe('Admin del cliente: Mi equipo', () => {
     await page.getByLabel('Correo').fill('equipo@cliente.test');
     await page.getByRole('button', { name: 'Enviar invitación' }).click();
     await expect(page.getByText('Esa persona ya hace parte de tu equipo.')).toBeVisible();
+  });
+});
+
+test.describe('Admin del cliente: cancelar invitaciones', () => {
+  test('cancelar pide confirmación y deja el enlace sin efecto', async ({ page, browser }) => {
+    await entrarCliente(page);
+    await page.goto('/cliente/equipo');
+    const fila = page.getByTestId('invitacion').filter({ hasText: 'invitado@cliente.test' });
+    await fila.getByRole('button', { name: 'Cancelar invitación' }).click();
+    await page.getByRole('button', { name: 'Cancelar', exact: true }).click(); // no confirma: sigue ahí
+    await expect(fila).toBeVisible();
+    await fila.getByRole('button', { name: 'Cancelar invitación' }).click();
+    await page.getByRole('button', { name: 'Sí, cancelar invitación' }).click();
+    await expect(page.getByText('Invitación cancelada.')).toBeVisible();
+    await expect(page.getByTestId('invitacion').filter({ hasText: 'invitado@cliente.test' })).toHaveCount(0);
+    expect((await estadoMock()).invitaciones.find((i: { correo: string }) => i.correo === 'invitado@cliente.test').revocada_en).toBeTruthy();
+    // el enlace cancelado ya no activa la cuenta
+    const ctx = await browser.newContext({ baseURL: 'http://127.0.0.1:3100' });
+    const p = await ctx.newPage();
+    await abrirSesion(p, 'existente@cliente.test');
+    await p.goto('/activar?token=tok-valido-123');
+    await p.getByLabel('Nombre completo').fill('Alguien');
+    await p.getByRole('checkbox').check();
+    await p.getByRole('button', { name: 'Activar mi cuenta' }).click();
+    await expect(p.getByText('Este enlace de invitación no es válido o ya venció')).toBeVisible();
+    await ctx.close();
   });
 });
 

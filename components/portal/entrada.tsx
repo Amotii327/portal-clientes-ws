@@ -7,7 +7,7 @@ import { Field, Input } from '@/components/ui/form';
 import { Clave, EntradaLayout } from '@/screens/entrada';
 import { Enlace } from '@/lib/router';
 import { crearClienteNavegador } from '@/lib/supabase/client';
-import { CLAVE_MINIMA, errorDeClave, mensajeDeAuth } from '@/lib/app/auth-errores';
+import { CLAVE_MINIMA, errorDeClave, esFrenada, mensajeDeAuth } from '@/lib/app/auth-errores';
 
 const CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -18,20 +18,21 @@ export function PantallaEntrar() {
   const [errClave, setErrClave] = React.useState('');
   const [errCorreo, setErrCorreo] = React.useState('');
   const [error, setError] = React.useState('');
+  const [frenada, setFrenada] = React.useState(false);
   const [salio, setSalio] = React.useState(false);
   const [enviando, setEnviando] = React.useState(false);
   React.useEffect(() => { setSalio(new URLSearchParams(window.location.search).get('salir') === '1'); }, []);
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError(''); setFrenada(false);
     const bad = !CORREO.test(correo.trim());
     setErrCorreo(bad ? 'Escribe un correo válido.' : '');
     setErrClave(clave ? '' : 'Escribe tu contraseña.');
     if (bad || !clave) return;
     setEnviando(true);
     const { error: err } = await crearClienteNavegador().auth.signInWithPassword({ email: correo.trim(), password: clave });
-    if (err) { setError(mensajeDeAuth(err)); setEnviando(false); return; }
+    if (err) { setFrenada(esFrenada(err)); setError(mensajeDeAuth(err)); setEnviando(false); return; }
     window.location.assign('/'); // recarga completa: el servidor lee la sesión nueva y decide a dónde vas
   };
 
@@ -42,7 +43,8 @@ export function PantallaEntrar() {
         <p className="mt-2 text-muted-foreground">Usa el correo con el que te invitamos.</p>
         <form className="mt-6 space-y-4" onSubmit={enviar} noValidate>
           {salio && !error && <Alert variant="success" title="Cerraste sesión">Tu sesión se cerró. Cuando quieras, vuelve a entrar.</Alert>}
-          {error && <Alert variant="danger" title="No pudimos entrar">{error}</Alert>}
+          {frenada && <Alert variant="danger" title="Cuenta frenada por 15 minutos">Fallaste la contraseña muchas veces seguidas. Es una medida de seguridad. Puedes esperar o <Enlace to="/recuperar" className="text-primary-text underline">cambiar tu contraseña</Enlace>.</Alert>}
+          {error && !frenada && <Alert variant="danger" title="No pudimos entrar">{error}</Alert>}
           <Field label="Correo" htmlFor="correo" error={errCorreo}><Input id="correo" type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} autoComplete="username" aria-invalid={!!errCorreo} /></Field>
           <Clave id="clave" label="Contraseña" value={clave} onChange={(v) => { setClave(v); setErrClave(''); }} error={errClave} autoComplete="current-password" />
           <Button type="submit" size="lg" className="w-full" disabled={enviando}>{enviando ? 'Entrando…' : 'Entrar'}</Button>

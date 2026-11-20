@@ -3,6 +3,14 @@ import { abrirSesion, entrarCliente, entrarSuper, estadoMock, reiniciar } from '
 
 test.beforeEach(async () => { await reiniciar(); });
 
+/** Next responde 307 o, si ya empezó a enviar, 200 con la orden de redirección (NEXT_REDIRECT) dentro de la respuesta. En ambos casos la pantalla no viaja. */
+async function esRedireccionASinPermiso(r: import('@playwright/test').APIResponse, etiqueta: string, marca: string) {
+  const cuerpo = await r.text();
+  const destino = r.headers()['location'] ?? (cuerpo.match(/NEXT_REDIRECT|sin-permiso\?r=[^;"\\]*;307/) ? cuerpo.match(/sin-permiso\?r=[^;"\\]*/)?.[0] ?? '' : '');
+  expect(destino, etiqueta).toContain('sin-permiso');
+  expect(cuerpo, etiqueta).not.toContain(marca);
+}
+
 test.describe('Estados de miContexto()', () => {
   const casos: { correo: string; estado: string; titulo: RegExp; texto?: RegExp }[] = [
     { correo: 'pausada@servicios.test', estado: 'empresa_pausada', titulo: /Servicios Demo Ltda\. está en pausa/, texto: /No se ha borrado nada/ },
@@ -92,6 +100,27 @@ test.describe('Sin permiso', () => {
     await expect(page.getByRole('heading', { name: 'No tienes permiso para ver esto' })).toBeVisible();
     await page.goto('/cliente/facturacion');
     await expect(page.getByRole('heading', { name: 'No tienes permiso para ver esto' })).toBeVisible();
+  });
+
+  test('el SERVIDOR corta la ruta: redirige a Sin permiso sin enviar la pantalla', async ({ page }) => {
+    const casos: [string, string, string][] = [
+      ['admin@cliente.test', '/admin/clientes', 'Crear empresa'],
+      ['admin@cliente.test', '/admin/panel', 'Panel'],
+      ['equipo@cliente.test', '/cliente/equipo', 'Invitar a alguien'],
+      ['equipo@cliente.test', '/cliente/facturacion', 'Razón social'],
+    ];
+    for (const [correo, ruta, marca] of casos) {
+      await page.context().clearCookies();
+      await entrarCliente(page, correo);
+      const r = await page.request.get(ruta, { maxRedirects: 0 });
+      await esRedireccionASinPermiso(r, `${correo} ${ruta}`, marca);
+      await page.goto(ruta);
+      await expect(page.getByRole('heading', { name: 'No tienes permiso para ver esto' })).toBeVisible();
+    }
+    await page.context().clearCookies();
+    await entrarSuper(page);
+    const r = await page.request.get('/cliente/equipo', { maxRedirects: 0 });
+    await esRedireccionASinPermiso(r, 'super /cliente/equipo', 'Invitar a alguien');
   });
 
   test('una ruta que no existe se explica sin romper', async ({ page }) => {

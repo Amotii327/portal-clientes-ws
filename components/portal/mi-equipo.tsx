@@ -9,9 +9,9 @@ import { Switch } from '@/components/ui/switch';
 import { PageHeader, Seccion } from '@/components/ds/page';
 import { EstadoCargando, EstadoError, EstadoVacio, SinPermiso } from '@/components/ds/states';
 import { crearClienteNavegador } from '@/lib/supabase/client';
-import { bloquearMiembro, quitarMiembro } from '@/lib/portal/acciones';
+import { bloquearMiembro, quitarMiembro, revocarInvitacion } from '@/lib/portal/acciones';
 import { mensajeDeError } from '@/lib/portal/errores';
-import { estaVencida, leerEquipo, nombreDe, useCargar, type FilaMiembro } from '@/lib/app/datos';
+import { estaVencida, leerEquipo, nombreDe, useCargar, type FilaInvitacion, type FilaMiembro } from '@/lib/app/datos';
 import { useStore } from '@/lib/store';
 import { fecha } from '@/lib/utils';
 import { Confirmar, InvitarDialog } from './invitar';
@@ -35,6 +35,7 @@ export function MiEquipoReal() {
   const [invitar, setInvitar] = React.useState(false);
   const [aQuitar, setAQuitar] = React.useState<FilaMiembro | null>(null);
   const [aBloquear, setABloquear] = React.useState<FilaMiembro | null>(null);
+  const [aCancelar, setACancelar] = React.useState<FilaInvitacion | null>(null);
 
   if (!esAdmin) return <><PageHeader titulo="Mi equipo" /><SinPermiso texto="Solo el administrador de la empresa puede invitar personas y decidir qué ve cada una." /></>;
 
@@ -59,6 +60,13 @@ export function MiEquipoReal() {
     if (error) avisar(mensajeDeError(error));
     else avisar(nuevo ? 'Bloqueaste a esta persona. Pierde el acceso de inmediato.' : 'Desbloqueaste a esta persona.');
     setABloquear(null); recargar(true);
+  };
+
+  const cancelar = async () => {
+    if (!aCancelar) return;
+    const { error } = await revocarInvitacion(crearClienteNavegador(), aCancelar.id);
+    if (error) avisar(mensajeDeError(error)); else avisar('Invitación cancelada. El enlace ya no sirve.');
+    setACancelar(null); recargar(true);
   };
 
   const activos = datos?.miembros.filter((m) => !m.quitado_en) ?? [];
@@ -119,7 +127,7 @@ export function MiEquipoReal() {
                 {pendientes.map((i) => (
                   <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm" data-testid="invitacion">
                     <span className="min-w-0 truncate font-medium">{i.correo}</span>
-                    <span className="flex items-center gap-2 text-muted-foreground">Vence el {fecha(i.vence_en)}<Badge variant={estaVencida(i) ? 'danger' : 'warning'}>{estaVencida(i) ? 'Vencida' : 'Pendiente'}</Badge></span>
+                    <span className="flex items-center gap-2 text-muted-foreground">Vence el {fecha(i.vence_en)}<Badge variant={estaVencida(i) ? 'danger' : 'warning'}>{estaVencida(i) ? 'Vencida' : 'Pendiente'}</Badge><Button size="sm" variant="outline" onClick={() => setACancelar(i)}>Cancelar invitación</Button></span>
                   </li>
                 ))}
               </ul>
@@ -141,6 +149,7 @@ export function MiEquipoReal() {
       )}
 
       <InvitarDialog abierto={invitar} onCerrar={() => setInvitar(false)} empresaId={empresaId} esSuper={false} onHecho={() => recargar(true)} />
+      <Confirmar abierto={!!aCancelar} titulo="¿Cancelar esta invitación?" texto={`El enlace enviado a ${aCancelar?.correo ?? ''} dejará de funcionar. Puedes invitar de nuevo cuando quieras.`} boton="Sí, cancelar invitación" onConfirmar={cancelar} onCerrar={() => setACancelar(null)} />
       <Confirmar abierto={!!aQuitar} titulo="¿Quitar a esta persona?" texto={`${aQuitar ? nombreDe(aQuitar) : ''} pierde el acceso de inmediato. Su historial se conserva.`} boton="Sí, quitar" onConfirmar={quitar} onCerrar={() => setAQuitar(null)} />
       <Confirmar abierto={!!aBloquear} tono={aBloquear?.bloqueado ? 'default' : 'destructive'} titulo={aBloquear?.bloqueado ? '¿Desbloquear a esta persona?' : '¿Bloquear a esta persona?'} texto={aBloquear?.bloqueado ? 'Volverá a entrar con sus permisos de antes.' : `${aBloquear ? nombreDe(aBloquear) : ''} pierde el acceso de inmediato, pero sigue en tu equipo. Puedes desbloquearla cuando quieras.`} boton={aBloquear?.bloqueado ? 'Sí, desbloquear' : 'Sí, bloquear'} onConfirmar={bloquear} onCerrar={() => setABloquear(null)} />
     </>

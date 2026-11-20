@@ -19,8 +19,8 @@ export function ResultadoInvitar({ r, esSuper }: { r: Extract<ResultadoCrear, { 
       <Alert variant="success" title="Invitación creada">
         Quedó lista para <strong>{r.correo}</strong>. El enlace vence el {fecha(r.venceEn.slice(0, 10))}.
         {!r.correoEnviado && !r.enlaceDev && (esSuper
-          ? ' El envío de correos todavía no está conectado: vuelve a invitar cuando esté activo.'
-          : ' El mensaje saldrá en cuanto activemos el envío de correos; el Equipo Websourcing te avisa.')}
+          ? ' El envío de correos todavía no está conectado, así que esta invitación no se entregó. Cuando se active, vuelve a invitar a esta persona para que reciba el enlace.'
+          : ' El envío de correos se activa pronto y por ahora esta invitación no se entrega. Cuando esté activo, el Equipo Websourcing te avisa y se reenvía la invitación.')}
       </Alert>
       {r.enlaceDev && (
         <Alert variant="warning" title="Solo desarrollo">

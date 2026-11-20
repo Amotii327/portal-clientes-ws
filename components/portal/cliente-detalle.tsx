@@ -10,9 +10,9 @@ import { PageHeader, Seccion } from '@/components/ds/page';
 import { EstadoCargando, EstadoError, SinPermiso } from '@/components/ds/states';
 import { Enlace } from '@/lib/router';
 import { crearClienteNavegador } from '@/lib/supabase/client';
-import { bloquearMiembro, bloquearUsuario, quitarMiembro } from '@/lib/portal/acciones';
+import { bloquearMiembro, bloquearUsuario, quitarMiembro, revocarInvitacion } from '@/lib/portal/acciones';
 import { mensajeDeError } from '@/lib/portal/errores';
-import { esUuid, estaVencida, leerEquipo, nombreDe, useCargar, type FilaMiembro } from '@/lib/app/datos';
+import { esUuid, estaVencida, leerEquipo, nombreDe, useCargar, type FilaInvitacion, type FilaMiembro } from '@/lib/app/datos';
 import { useStore } from '@/lib/store';
 import { fecha } from '@/lib/utils';
 import { EstadoEmpresaBadge, useCambioDeEstado } from './clientes';
@@ -37,6 +37,7 @@ export function ClienteDetalleReal({ id }: { id: string }) {
   const { estado, datos, recargar } = useCargar(() => (esUuid(id) ? leerDetalle(id) : Promise.resolve(null)), [id]);
   const [invitar, setInvitar] = React.useState(false);
   const [accion, setAccion] = React.useState<Accion | null>(null);
+  const [aCancelar, setACancelar] = React.useState<FilaInvitacion | null>(null);
   const cambio = useCambioDeEstado(() => recargar(true));
 
   const volver = <Button variant="ghost" asChild><Enlace to="/admin/clientes"><ArrowLeft />Clientes</Enlace></Button>;
@@ -65,6 +66,12 @@ export function ClienteDetalleReal({ id }: { id: string }) {
     bloqueo_global: (m) => (m.perfiles?.bloqueado
       ? { titulo: '¿Quitar el bloqueo global?', texto: `${nombreDe(m)} podrá volver a entrar al portal.`, boton: 'Sí, quitar el bloqueo' }
       : { titulo: '¿Bloquear en todo el portal?', texto: `${nombreDe(m)} no podrá entrar a ninguna empresa y sus sesiones se cierran.`, boton: 'Sí, bloquear en todo el portal' }),
+  };
+  const cancelar = async () => {
+    if (!aCancelar) return;
+    const { error } = await revocarInvitacion(crearClienteNavegador(), aCancelar.id);
+    if (error) avisar(mensajeDeError(error)); else avisar('Invitación cancelada. El enlace ya no sirve.');
+    setACancelar(null); recargar(true);
   };
   const t = accion ? textos[accion.tipo](accion.m) : null;
 
@@ -123,11 +130,11 @@ export function ClienteDetalleReal({ id }: { id: string }) {
 
       <Seccion titulo="Invitaciones pendientes" descripcion="Aún no han activado su cuenta. Para renovar una, invita de nuevo al mismo correo.">
         <Table>
-          <THead><TR><TH>Correo</TH><TH>Rol</TH><TH>Vence</TH><TH>Estado</TH></TR></THead>
+          <THead><TR><TH>Correo</TH><TH>Rol</TH><TH>Vence</TH><TH>Estado</TH><TH><span className="sr-only">Acciones</span></TH></TR></THead>
           <TBody>
-            {invitaciones.length === 0 && <TR><TD colSpan={4} className="text-muted-foreground">No hay invitaciones pendientes.</TD></TR>}
+            {invitaciones.length === 0 && <TR><TD colSpan={5} className="text-muted-foreground">No hay invitaciones pendientes.</TD></TR>}
             {invitaciones.map((i) => (
-              <TR key={i.id} data-testid="fila-invitacion"><TD className="font-medium">{i.correo}</TD><TD>{i.rol === 'admin_cliente' ? 'Administrador' : 'Equipo'}</TD><TD className="text-muted-foreground">{fecha(i.vence_en)}</TD><TD><Badge variant={estaVencida(i) ? 'danger' : 'warning'}>{estaVencida(i) ? 'Vencida' : 'Pendiente'}</Badge></TD></TR>
+              <TR key={i.id} data-testid="fila-invitacion"><TD className="font-medium">{i.correo}</TD><TD>{i.rol === 'admin_cliente' ? 'Administrador' : 'Equipo'}</TD><TD className="text-muted-foreground">{fecha(i.vence_en)}</TD><TD><Badge variant={estaVencida(i) ? 'danger' : 'warning'}>{estaVencida(i) ? 'Vencida' : 'Pendiente'}</Badge></TD><TD className="text-right"><Button size="sm" variant="outline" onClick={() => setACancelar(i)}>Cancelar invitación</Button></TD></TR>
             ))}
           </TBody>
         </Table>
@@ -135,6 +142,7 @@ export function ClienteDetalleReal({ id }: { id: string }) {
 
       <InvitarDialog abierto={invitar} onCerrar={() => setInvitar(false)} empresaId={empresa.id} esSuper onHecho={() => recargar(true)} />
       <Confirmar abierto={!!accion} titulo={t?.titulo ?? ''} texto={t?.texto ?? ''} boton={t?.boton ?? ''} tono={accion?.tipo === 'bloquear' && accion.m.bloqueado ? 'default' : 'destructive'} onConfirmar={ejecutar} onCerrar={() => setAccion(null)} />
+      <Confirmar abierto={!!aCancelar} titulo="¿Cancelar esta invitación?" texto={`El enlace enviado a ${aCancelar?.correo ?? ''} dejará de funcionar. Puedes invitar de nuevo cuando quieras.`} boton="Sí, cancelar invitación" onConfirmar={cancelar} onCerrar={() => setACancelar(null)} />
       {cambio.dialogo}
     </>
   );

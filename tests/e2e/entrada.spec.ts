@@ -18,6 +18,14 @@ test.describe('Entrar y salir', () => {
     await expect(page).toHaveURL(/\/entrar/);
   });
 
+  test('cuenta frenada por intentos (5 intentos / 15 minutos): aviso del diseño con salida a recuperar', async ({ page }) => {
+    await entrar(page, 'frenada@cliente.test');
+    await expect(page.getByText('Cuenta frenada por 15 minutos')).toBeVisible();
+    await expect(page.getByText('Fallaste la contraseña muchas veces seguidas')).toBeVisible();
+    await page.getByRole('link', { name: 'cambiar tu contraseña' }).click();
+    await expect(page).toHaveURL(/\/recuperar/);
+  });
+
   test('campos vacíos: muestra qué falta', async ({ page }) => {
     await page.goto('/entrar');
     await page.getByRole('button', { name: 'Entrar', exact: true }).click();
@@ -84,10 +92,17 @@ test.describe('Código adicional (2FA)', () => {
     await reiniciar({ exigir_2fa_admin_cliente: true });
     await entrar(page, 'admin@cliente.test');
     await expect(page).toHaveURL(/\/verificar/);
+    // mientras no verifique, ninguna zona privada se abre (el servidor lo decide con miContexto)
+    for (const ruta of ['/cliente/inicio', '/cliente/equipo', '/']) {
+      await page.goto(ruta);
+      await expect(page).toHaveURL(/\/verificar/);
+    }
     await page.getByRole('button', { name: 'Empezar' }).click();
     await page.getByLabel('Código de 6 dígitos').fill(CODIGO);
     await page.getByRole('button', { name: 'Verificar y entrar' }).click();
     await expect(page).toHaveURL(/\/cliente\/inicio/);
+    await page.goto('/cliente/equipo');
+    await expect(page.getByRole('heading', { name: 'Mi equipo' })).toBeVisible();
   });
 
   test('quien no necesita código y abre /verificar vuelve a su inicio', async ({ page }) => {
@@ -186,6 +201,28 @@ test.describe('Activar invitación', () => {
     await expect(page.getByText('Comercial Ejemplo S.A.S.').first()).toBeVisible();
     const e = await estadoMock();
     expect(e.invitaciones.find((i: { correo: string }) => i.correo === 'invitado@cliente.test').usada_en).toBeTruthy();
+  });
+
+  test('cuenta frenada también se avisa al activar (modo entrar)', async ({ page }) => {
+    await page.goto('/activar?token=tok-valido-123');
+    await page.getByRole('button', { name: 'Ya tengo una cuenta: entrar' }).click();
+    await page.getByLabel('Correo').fill('frenada@cliente.test');
+    await page.getByLabel('Tu contraseña').fill(CLAVE);
+    await page.getByRole('button', { name: 'Entrar y continuar' }).click();
+    await expect(page.getByText('Cuenta frenada por 15 minutos')).toBeVisible();
+    await expect(page.getByText('Espera 15 minutos')).toBeVisible();
+  });
+
+  test('un correo que ya tiene cuenta no se revela: mensaje neutro', async ({ page }) => {
+    await page.goto('/activar?token=tok-confirmado-777');
+    await page.getByLabel('Correo').fill('existente@cliente.test');
+    await page.getByLabel('Crea tu contraseña').fill(CLAVE);
+    await page.getByLabel('Repite tu contraseña').fill(CLAVE);
+    await page.getByRole('button', { name: 'Continuar' }).click();
+    await expect(page.getByText('No pudimos crear la cuenta con esos datos')).toBeVisible();
+    await expect(page.locator('body')).not.toContainText('ya tiene una cuenta');
+    await expect(page.getByRole('heading', { name: 'Activa tu cuenta' })).toBeVisible(); // no cambia de pantalla
+    await expect(page.getByRole('link', { name: 'Recuperar contraseña' })).toBeVisible();
   });
 
   test('un correo sin invitación no puede registrarse', async ({ page }) => {
