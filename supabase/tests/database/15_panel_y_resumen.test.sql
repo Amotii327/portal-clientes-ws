@@ -24,7 +24,7 @@ select is((public.panel_super_admin() -> 'totales' ->> 'proyectos_activos')::int
 select is((public.panel_super_admin() -> 'totales' ->> 'hitos_atrasados')::int, 2, 'panel: cuenta los atrasos de todos los hitos (incluido el 13 oculto)');
 select is((public.panel_super_admin() -> 'totales' ->> 'planes_por_aprobar')::int, 1, 'panel: 1 plan por aprobar (el borrador de B)');
 select is((public.panel_super_admin() -> 'totales' ->> 'demos_proximas_7_dias')::int, 1, 'panel: 1 demo en los proximos 7 dias');
-select is((public.panel_super_admin() -> 'totales') -> 'pagos_vencidos', 'null'::jsonb, 'panel: pagos vencidos viene nulo (modulo de dinero aun no existe)');
+select is((public.panel_super_admin() -> 'totales') -> 'pagos_vencidos', '0'::jsonb, 'panel: pagos vencidos es 0 cuando no hay contratos (sprint 4: ya no viene nulo)');
 select is((public.panel_super_admin() -> 'totales') -> 'tickets_abiertos', 'null'::jsonb, 'panel: tickets abiertos viene nulo (modulo aun no existe)');
 select is(jsonb_array_length(public.panel_super_admin() -> 'proyectos'), 2, 'panel: lista los proyectos de todas las empresas');
 select is((select count(*)::int from jsonb_array_elements(public.panel_super_admin() -> 'atencion') a where a ->> 'tipo' = 'hito_atrasado'), 2, 'panel: "atencion" trae los hitos atrasados');
