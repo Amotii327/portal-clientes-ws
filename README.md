@@ -50,3 +50,11 @@ npm run build    # genera la página estática en out/ (se puede subir a cualqui
 ```
 
 Para verlo sin servidor, abre `out/index.html`. Mapa de pantallas: `docs/2026-11-20_diseno_mapa-de-pantallas_v1.md`.
+
+## Backend (sprint 1)
+
+Base de datos en `supabase/` (migraciones versionadas, reglas por empresa y pruebas). Quién puede qué: `docs/matriz-permisos.md`. Qué debe usar cada pantalla: `docs/2026-11-23_nota_backend-para-frontend_v1.md`.
+
+- Pruebas de base de datos: `npm run test:db` (PostgreSQL local temporal + pgTAP; con Docker y la CLI de Supabase, el equivalente es `supabase db reset && supabase test db`).
+- Variables de entorno: copiar `.env.example` a `.env.local` (nunca se sube al repositorio).
+- App con servidor (necesaria para el middleware de sesión): `npm run build:servidor` y `npm start`. `npm run build` sigue exportando el prototipo.
