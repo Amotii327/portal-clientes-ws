@@ -51,14 +51,14 @@ export interface RevisionVersion {
 /** La respuesta del cliente. NO trae IP, usuario ni navegador (eso solo lo lee el super admin en el registro). */
 export interface Aprobacion {
   id: string;
-  empresa_id: string;
+  empresa_id?: string;
   revision_id: string;
   version: number;
   decision: DecisionRevision;
   comentario: string | null;
   /** Ruta en el bucket `capturas-revisiones`. */
   captura_path: string | null;
-  miembro_id: string;
+  miembro_id?: string;
   /** Nombre de quien respondió (el que tenía ese día). */
   persona: string;
   creado_en: string;
