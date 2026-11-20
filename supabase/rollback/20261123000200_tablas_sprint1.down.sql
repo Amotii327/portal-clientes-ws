@@ -1,0 +1,10 @@
+drop table if exists public.preferencias_usuario;
+drop table if exists public.configuracion;
+drop table if exists public.registro_actividad;
+drop table if exists public.aceptaciones_politica;
+drop table if exists public.invitaciones;
+drop table if exists public.miembros;
+drop table if exists public.datos_facturacion;
+drop table if exists public.empresas;
+drop table if exists public.super_admins;
+drop table if exists public.perfiles;

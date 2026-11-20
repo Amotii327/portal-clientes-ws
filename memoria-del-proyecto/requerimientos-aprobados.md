@@ -1,6 +1,6 @@
 # Requerimientos · Portal de clientes Websourcing
 
-**Equipo Websourcing · Producto** · Versión v3 · Estado: aprobado por el dueño el 2026-11-19. Cambios: v2 agrega el Módulo 10 (mantenimiento); v3 agrega que el cliente sube archivos y comprobantes de pago (Módulos 4 y 6)
+**Equipo Websourcing · Producto** · Versión v4 · Estado: aprobado por el dueño el 2026-11-19. Cambios: v2 agrega el Módulo 10 (mantenimiento); v3 agrega que el cliente sube archivos y comprobantes de pago (Módulos 4 y 6); v4 agrega el plan de sprints editable por el super admin (Módulo 7)
 
 > Proyecto interno: Websourcing es el cliente de sí misma. Por eso el dueño aprueba como dueño y como cliente.
 > Fuentes: documento 3 "Portal de clientes: niveles de acceso, tickets y línea de tiempo" y el archivo de traspaso.
@@ -129,6 +129,16 @@ Es lo primero que ve el cliente al entrar.
 - Panel general: proyectos activos, avance, retrasos, pagos vencidos y tickets abiertos. Prioridad: imprescindible.
 - Clientes: crear, editar y pausar empresas; ver su historial; modo "ver como el cliente" (solo lectura, queda en el registro). Prioridad: imprescindible.
 - Proyectos: crear proyecto, editar hitos, sprints, entregables y links de prueba. Prioridad: imprescindible.
+- **Plan de sprints por proyecto:**
+  - **Historia:** Como super admin quiero ver el plan de sprints que propone el Equipo Websourcing para cada proyecto y poder cambiarlo, para que el plan quede a mi medida antes de mostrarlo al cliente.
+  - **Criterios de aceptación:**
+    - Cada proyecto tiene un plan de sprints: número, nombre, fecha de inicio, fecha de fin, fecha de demo y qué incluye (lista de entregables o historias). El Equipo lo carga como **propuesta**.
+    - Dado que soy super admin, puedo agregar, quitar y reordenar sprints, y cambiar su duración, fechas y contenido. El sistema avisa si dos sprints se cruzan en fechas.
+    - Dado que muevo un sprint, puedo pedir que los siguientes se corran solos con la misma duración.
+    - Cuando marco el plan como **aprobado**, el cliente lo ve en su línea de tiempo (hito 6). Mientras está en propuesta, el cliente no lo ve.
+    - Si cambio un plan ya aprobado, debo escribir el motivo; el cliente ve las fechas nuevas y el motivo, y queda en el historial (igual que un retraso).
+    - Cada sprint tiene estado: propuesto, aprobado, en curso, en revisión, terminado.
+  - Prioridad: imprescindible.
 - Finanzas: contratos, plan de pagos, abonos, facturas e ingresos por mes y por cliente. Prioridad: importante (los ingresos por mes y cliente).
 - Registro de todo lo que se hizo (quién, qué, cuándo) y bloqueo de un usuario. Prioridad: imprescindible.
 

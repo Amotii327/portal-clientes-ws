@@ -1,0 +1,75 @@
+# Configuracion de Supabase para el portal de clientes Websourcing.
+# Sirve para `supabase start` (local, requiere Docker) y documenta lo que debe quedar igual en el
+# proyecto de Supabase real (panel: Authentication). NO contiene claves ni secretos.
+# Equipo Websourcing · Desarrollo
+
+project_id = "portal-clientes-websourcing"
+
+[api]
+enabled = true
+port = 54321
+# Solo public se expone por la API. El esquema `private` (funciones auxiliares de las reglas) NO.
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.migrations]
+enabled = true
+
+[db.seed]
+enabled = false
+
+[studio]
+enabled = true
+port = 54323
+
+# Bandeja de correo de prueba local (los correos de Auth no salen a internet en local).
+[local_smtp]
+enabled = true
+port = 54324
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000/**"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+# Se permite crear cuenta, pero el gancho before_user_created (abajo) solo deja pasar a quien
+# tiene una invitacion vigente para su correo.
+enable_signup = true
+enable_anonymous_sign_ins = false
+# Contrasena minima de 10 caracteres (arquitectura, seccion 5). La revision contra contrasenas
+# filtradas se activa en el panel de Supabase (Authentication > Attack Protection), plan Pro.
+minimum_password_length = 10
+
+[auth.email]
+enabled = true
+double_confirm_changes = true
+# El correo debe estar confirmado: aceptar_invitacion lo exige.
+enable_confirmations = true
+secure_password_change = true
+max_frequency = "1m0s"
+
+# Codigo adicional (2FA) con app del celular (TOTP): obligatorio para super admin y admin del cliente (D-014).
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+# Solo se puede registrar quien tiene una invitacion vigente (ver migracion 000600).
+# NOTA: no se pudo probar contra GoTrue real en este entorno (sin Docker ni cuenta de Supabase).
+[auth.hook.before_user_created]
+enabled = true
+uri = "pg-functions://postgres/private/gancho_antes_de_crear_usuario"
+
+# Bloqueo a los 5 intentos fallidos / 15 minutos (migracion 000700). El gancho de verificacion de
+# contrasena exige plan Pro: se enciende al pasar a Pro. Plan B si no esta disponible: ver la nota
+# para Frontend (docs/2026-11-23_nota_backend-para-frontend_v1.md, seccion 4).
+[auth.hook.password_verification_attempt]
+enabled = false
+uri = "pg-functions://postgres/private/gancho_intento_de_acceso"

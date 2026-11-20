@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   SISTEMA DE DISEÑO · Portal de clientes Websourcing
+   Todo el aspecto sale de estas variables (formato "R G B").
+   Marca aprobada: verde #99F100 · negro #0D1015 · fondo oscuro #050608
+   ============================================================ */
+:root {
+  /* Tema oscuro (por defecto), como la web www.websourcing.com.co */
+  --background: 5 6 8;            /* #050608 */
+  --surface: 13 16 21;            /* #0D1015 tarjetas */
+  --surface-2: 21 26 34;          /* #151A22 tarjetas internas, filas, campos */
+  --border: 38 45 56;             /* #262D38 */
+  --foreground: 244 246 248;      /* #F4F6F8 */
+  --muted: 28 34 44;              /* fondos suaves */
+  --muted-foreground: 154 164 178;/* #9AA4B2 texto secundario */
+  --primary: 153 241 0;           /* #99F100 verde de marca */
+  --primary-foreground: 13 16 21; /* texto sobre el verde */
+  --primary-text: 153 241 0;      /* verde usado como texto */
+  --success: 74 222 128;
+  --warning: 245 184 61;
+  --danger: 255 107 107;
+  --info: 91 181 255;
+  --ring: 153 241 0;
+
+  --radius-sm: 0.5rem;
+  --radius: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --shadow-card: 0 1px 0 rgb(38 45 56 / 0.6), 0 8px 24px -12px rgb(0 0 0 / 0.5);
+  --card-border: var(--border);
+
+  /* Espaciado de página */
+  --gutter: 1rem;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  /* Propuesta A "Clara": fondo gris muy claro, tarjetas blancas, sombra suave, esquinas muy redondeadas */
+  --background: 243 244 246;      /* #F3F4F6 */
+  --surface: 255 255 255;
+  --surface-2: 245 246 248;
+  --border: 229 232 237;
+  --foreground: 13 16 21;
+  --muted: 232 235 240;
+  --muted-foreground: 87 97 112;  /* AA sobre blanco y sobre gris claro */
+  --primary: 153 241 0;
+  --primary-foreground: 13 16 21;
+  --primary-text: 13 16 21;       /* nunca texto verde sobre blanco: el acento verde va solo como relleno */
+  --success: 14 98 43;
+  --warning: 122 70 0;
+  --danger: 166 22 22;
+  --info: 17 80 156;
+  --ring: 13 16 21;
+  --radius-sm: 0.75rem;
+  --radius: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-xl: 2rem;
+  --shadow-card: 0 1px 2px rgb(13 16 21 / 0.04), 0 8px 24px -8px rgb(13 16 21 / 0.08);
+  --card-border: 236 238 242;
+  color-scheme: light;
+}
+
+@media (min-width: 768px) { :root { --gutter: 1.5rem; } }
+@media (min-width: 1280px) { :root { --gutter: 2rem; } }
+
+@layer base {
+  * { @apply border-border; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-size: 15px;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+  h1, h2, h3, h4 { @apply font-display font-semibold tracking-tight; }
+  :focus-visible { @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background; }
+  ::selection { background: rgb(var(--primary) / 0.35); }
+}
+
+@layer components {
+  :root[data-theme='light'] a.text-primary-text:not([aria-current]) { text-decoration: underline; text-underline-offset: 3px; }
+  /* Logo: la variante blanca se usa en el tema Oscuro (sin depender de ningún proveedor de estado). */
+  .logo-oscuro { display: none; }
+  :root:not([data-theme='light']) .logo-claro { display: none; }
+  :root:not([data-theme='light']) .logo-oscuro { display: block; }
+  .page-gutter { padding-inline: var(--gutter); }
+  .skeleton { @apply animate-pulse rounded bg-surface-2; }
+  .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
