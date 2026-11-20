@@ -10,8 +10,9 @@ select is_empty(
   'RLS activa en todas las tablas del esquema public');
 
 -- 2. Las 10 tablas del sprint 1 existen.
-select is((select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
-            where n.nspname = 'public' and c.relkind = 'r'), 11, 'hay 11 tablas en public (sprint 1)');
+-- (Desde el sprint 5/6 hay mas tablas: se comprueba que existan al menos las 11 del sprint 1.)
+select cmp_ok((select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'public' and c.relkind = 'r'), '>=', 11, 'hay al menos 11 tablas en public (sprint 1)');
 
 -- 3. Toda tabla con RLS tiene politicas, salvo super_admins (cerrada a proposito).
 select is_empty(
@@ -95,6 +96,8 @@ select is_empty(
 select is_empty(
   $$select c.table_name::text from information_schema.columns c
      where c.table_schema = 'public' and c.column_name = 'empresa_id'
+       and exists (select 1 from information_schema.tables x where x.table_schema = 'public'
+                    and x.table_name = c.table_name and x.table_type = 'BASE TABLE')   -- las vistas heredan la cerradura de sus tablas
        and not exists (select 1 from pg_trigger t join pg_proc p on p.oid = t.tgfoid
                         where t.tgrelid = ('public.' || c.table_name)::regclass and p.proname = 'empresa_id_inmutable')$$,
   'toda tabla con empresa_id tiene el trigger que la hace inmutable');
