@@ -38,3 +38,15 @@ Cada proyecto de cliente nace como una copia de este repositorio. Ahí se llenan
 - Reglas de precio en `memoria-del-proyecto/reglas-de-precio.md`.
 - Alojamiento (no Vercel).
 - Crear la organización y este repositorio en GitHub.
+
+## Prototipo del portal (etapa de diseño)
+
+Prototipo navegable con datos de ejemplo (sin base de datos ni claves).
+
+```bash
+npm install
+npm run dev      # http://localhost:3000
+npm run build    # genera la página estática en out/ (se puede subir a cualquier carpeta)
+```
+
+Para verlo sin servidor, abre `out/index.html`. Mapa de pantallas: `docs/2026-11-20_diseno_mapa-de-pantallas_v1.md`.
