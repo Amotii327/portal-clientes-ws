@@ -11,12 +11,12 @@ Roles: **SA** = super admin con 2FA (sin "ver como" abierto) · **Admin** = admi
 | Objeto | SA | Admin | Eq+$ | Eq | Escritura |
 |---|---|---|---|---|---|
 | `contratos` | Todos | El de su empresa | Idem | Nada | Solo funciones del SA |
-| `pagos_programados` (el plan) | Todas | Las de su empresa | Idem | Nada | Solo funciones del SA |
+| `pagos_programados` (el plan) | Todas (sin la columna cruda `hito_id`: se lee por `v_pagos_programados`) | Las de su empresa | Idem | Nada | Solo funciones del SA |
 | `abonos` | Todos | Los de su empresa | Idem | Nada | Solo `crear_abono`, `confirmar_comprobante`; se anulan con `anular_abono` (nunca se editan ni se borran) |
 | `facturas` | Todas | Las de su empresa | Idem | Nada | Solo SA (`crear_factura`, `anular_factura`); nunca se editan ni se borran |
 | `comprobantes_pago` | Todos | Los de su empresa | Idem | Nada | El cliente solo por `subir_comprobante`; el SA los resuelve; nunca se borran |
 | `avisos_salientes` (cola de avisos) | Todos | Nada | Nada | Nada | Triggers y la tarea de recordatorios. La vaciará el módulo de notificaciones (sprint 6) |
-| `v_pagos_programados`, `v_contratos_saldo` | Todo | Lo de su empresa | Idem | Vacías | No aplica (vistas `security_invoker`) |
+| `v_pagos_programados`, `v_contratos_saldo` | Todo | Lo de su empresa (`hito_id` null si el hito está oculto) | Idem | Vacías | No aplica (vistas `security_invoker`) |
 | `v_ingresos_por_mes`, `v_ingresos_por_cliente`, `v_ingresos_por_mes_y_cliente` | Todo | **Vacías** | **Vacías** | **Vacías** | No aplica. Ingresos es solo del super admin |
 
 Ningún rol de la aplicación tiene INSERT, UPDATE ni DELETE de tabla. `service_role` no tiene permisos de tabla (se concederán a notificaciones en el sprint 6).

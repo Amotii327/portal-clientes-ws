@@ -45,7 +45,9 @@ Lo puede hacer el admin del cliente o el equipo con **`ver_dinero` y `subir_arch
 2. Llama `subirComprobante(c, { p_pago_id, p_archivo_path, p_archivo_nombre, p_archivo_tipo, p_tamano_bytes, p_valor, p_fecha_pago, p_nota? })`.
 3. La cuota pasa a `en_revision`, el saldo **no** cambia y el super admin recibe un aviso. Si lo rechazan, `comprobantes[].motivo_rechazo` trae el motivo: muéstrelo y deje subir otro.
 
-Si la función falla, el archivo subido queda huérfano en Storage (no es visible para nadie); el servidor puede ignorarlo.
+Con Storage real, `subirComprobante` comprueba que el archivo **ya exista** en el bucket y usa su tipo y tamaño **reales** (no los declarados); el bucket solo admite pdf, jpg, png y webp.
+
+**Archivos huérfanos (si la función falla, o si alguien sube y no registra):** el archivo queda en el bucket sin fila dueña; nadie puede leerlo (la regla de lectura mira la tabla). Cómo limpiarlos: (1) el servidor, si `subirComprobante` falla, borra el archivo recién subido con la sesión del usuario... pero **no hay política de borrado**, así que la limpieza real es una tarea programada con la clave de sistema (módulo de notificaciones/mantenimiento, sprint 6) que cada semana lista `storage.objects` del bucket `dinero` con más de 24 horas y sin fila en `comprobantes_pago.archivo_path`, `facturas.archivo_path` ni `abonos.archivo_path`, y los borra con la API de Storage. Consulta de apoyo: `select o.name from storage.objects o where o.bucket_id = 'dinero' and o.created_at < now() - interval '1 day' and not exists (select 1 from public.comprobantes_pago k where k.archivo_path = o.name) and not exists (select 1 from public.facturas f where f.archivo_path = o.name) and not exists (select 1 from public.abonos a where a.archivo_path = o.name);` Pendiente de ese sprint: un tope de archivos huérfanos por empresa.
 
 ## 5. Super admin
 
@@ -89,7 +91,7 @@ Con "ver como" abierto todas estas responden `ver_como_solo_lectura`.
 3. **Plan de pagos:** las cuotas deben sumar **como máximo** el valor del contrato (`sin_programar` muestra lo que falta repartir); no obliga a llegar al 100 %.
 4. **Abono:** puede ir atado a una cuota o suelto (al contrato). Una cuota con abonos parciales sigue por vencer o vencida hasta cubrirse. Si un abono se anula, la cuota vuelve a su estado por fecha.
 5. **Estado `vencido`** = fecha pasada y sin pagar. Una cuota con comprobante en revisión se muestra `en_revision` (no cuenta como vencida en el panel ni genera recordatorios al cliente).
-6. **Recordatorios:** "3 días antes y el día que vence" (requisito) se implementa como ventana de 3 días hasta el día anterior (un solo aviso aunque la tarea falle un día) + aviso el día del vencimiento + un aviso de vencido. Si el super admin cambia la fecha de una cuota, se encola un aviso nuevo con la fecha nueva.
+6. **Recordatorios (lectura aceptada por Calidad: no se avisa de cuotas con comprobante en revisión, porque el cliente ya pagó y espera la revisión):** "3 días antes y el día que vence" (requisito) se implementa como ventana de 3 días hasta el día anterior (un solo aviso aunque la tarea falle un día) + aviso el día del vencimiento + un aviso de vencido. Si el super admin cambia la fecha de una cuota, se encola un aviso nuevo con la fecha nueva.
 7. **Facturas:** a nombre de Amotii, siempre. Se anulan (no se borran) y el motivo lo ve el cliente. Una factura puede atarse a una cuota o ser del contrato.
 8. **Cliente que borra su comprobante:** no se permite (queda en el historial). Si se equivocó, el super admin lo rechaza con motivo y sube otro.
 9. **Ingresos** = abonos vigentes por `fecha_pago`, por mes y por cliente, una fila por moneda (sin conversión COP/USD, que no está en el alcance).
@@ -101,8 +103,14 @@ Con "ver como" abierto todas estas responden `ver_como_solo_lectura`.
 - `01_estructura.test.sql`: el conteo de tablas pasa de 19 a 25 aquí; con otras ramas se suma lo de cada una. `15_panel_y_resumen.test.sql`: la línea de `pagos_vencidos` ahora espera `0`.
 - `database.types.ts`: regenerar con las tablas, vistas y funciones nuevas y mover `tipos-dinero.ts`, `acciones-dinero.ts` y `errores-dinero.ts` a sus archivos de siempre.
 
+## 10b. Correcciones de Calidad (migración `20261218000600`)
+
+- `hito_id` de una cuota llega `null` si el hito está oculto para el cliente (vista y `dinero_del_proyecto`); la columna cruda `hito_id` de la tabla `pagos_programados` ya no se puede leer: use la vista `v_pagos_programados`.
+- El aviso de comprobante confirmado trae el valor del abono confirmado (no el declarado).
+- El abono de un comprobante debe ser del mismo contrato (llave compuesta).
+
 ## 11. Lo que falta o no se probó
 
 - Las políticas de `storage.objects` (bucket `dinero`) no se pueden probar con la base local (no tiene Storage); sí están probadas las funciones que deciden. Probar con Supabase real: leer y subir con cada rol, y que un enlace firmado de otra empresa falle.
-- Concurrencia (dos confirmaciones o abonos a la vez): se serializa bloqueando primero la fila del contrato; no se corrió una prueba con dos sesiones simultáneas.
+- Concurrencia: probada con dos sesiones reales (`supabase/tests/concurrencia/40_dinero_concurrencia.test.sql`, con dblink, en una copia desechable de la base que arma `scripts/test-db.sh`). Verifica que `contrato_para_cambio` bloquea la fila (si alguien le quita el `for update`, la prueba falla), que de dos abonos que juntos pasan el saldo solo uno gana, y que un mismo comprobante confirmado desde dos sesiones crea un solo abono.
 - No hay pago en línea (v2) ni conversión de monedas ni envío real de correos.
