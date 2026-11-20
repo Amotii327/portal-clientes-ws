@@ -1,0 +1,13 @@
+drop trigger if exists datos_facturacion_autor on public.datos_facturacion;
+drop trigger if exists configuracion_autor on public.configuracion;
+drop trigger if exists empresas_registro on public.empresas;
+drop trigger if exists datos_facturacion_registro on public.datos_facturacion;
+drop trigger if exists miembros_registro on public.miembros;
+drop trigger if exists invitaciones_registro on public.invitaciones;
+drop trigger if exists perfiles_registro on public.perfiles;
+drop trigger if exists super_admins_registro on public.super_admins;
+drop trigger if exists aceptaciones_politica_registro on public.aceptaciones_politica;
+drop trigger if exists configuracion_registro on public.configuracion;
+drop function if exists private.poner_actualizado_por();
+drop function if exists private.trg_registro();
+delete from public.configuracion where clave in ('marca','horario_habil','tiempos_respuesta','politica_datos','seguridad');

@@ -1,0 +1,14 @@
+drop function if exists public.mi_contexto();
+drop function if exists public.politica_vigente();
+drop function if exists public.bloquear_usuario(uuid, boolean);
+drop function if exists public.reactivar_empresa(uuid);
+drop function if exists public.pausar_empresa(uuid, text);
+drop function if exists public.bloquear_miembro(uuid, boolean);
+drop function if exists public.quitar_miembro(uuid);
+drop function if exists private.miembro_gestionable(uuid);
+drop function if exists public.aceptar_invitacion(text, text, text, text, inet);
+drop function if exists public.invitar_miembro(uuid, text, text, boolean, boolean, boolean, boolean);
+drop function if exists public.crear_empresa(text, text, text, text, text, text);
+drop function if exists private.gancho_antes_de_crear_usuario(jsonb);
+drop function if exists private.crear_invitacion(uuid, text, text, boolean, boolean, boolean, boolean);
+drop function if exists private.normalizar_correo(text);

@@ -1,0 +1,13 @@
+drop function if exists private.registrar(uuid, text, text, text, jsonb);
+drop function if exists private.cerrar_sesiones(uuid);
+drop function if exists private.version_politica_vigente();
+drop function if exists private.es_admin_de_usuario(uuid);
+drop function if exists private.tiene_acceso();
+drop function if exists private.tiene_permiso(uuid, text);
+drop function if exists private.es_admin_cliente(uuid);
+drop function if exists private.mi_empresa_id();
+drop function if exists private.miembro_activo();
+drop function if exists private.es_super_admin();
+drop function if exists private.exigir_2fa_admin_cliente();
+drop function if exists private.ip_cliente();
+drop function if exists private.nivel_sesion();
