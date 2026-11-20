@@ -62,3 +62,7 @@ Todas aprobadas por el dueño el 2026-11-19 ("sí a todo" a las propuestas de la
 ## D-018 · Proyecto de Supabase · 2026-11-19
 - **Qué se decidió:** proyecto `portal-clientes-ws` (ID icinxatqxbpdvssdecke) en la organización Amotii, región East US (us-east-1). Por ahora en plan gratuito para desarrollo; se sube a Pro antes de producción (copias diarias y sin pausa). El VPS debe quedar en EE. UU. para estar cerca de la base.
 - **Aprobó:** dueño (creó el proyecto)
+
+## D-019 · Facturación del cliente adelantada al sprint 1 · 2026-11-20
+- **Qué se decidió:** la pantalla `/cliente/facturacion` (datos de facturación de la empresa, parte del Módulo 4 de los requerimientos aprobados) queda en el sprint 1, aunque el plan la ponía después. No es alcance nuevo.
+- **Aprobó:** dueño, 2026-11-20
