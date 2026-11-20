@@ -64,7 +64,7 @@ select is_empty($$select p.proname::text from pg_proc p join pg_namespace n on n
                      'responder_revision') and not p.prosecdef$$, 'las funciones de escritura son SECURITY DEFINER');
 select ok(not has_function_privilege('authenticated', 'private.confirmar_reserva(uuid,text)', 'execute'), 'authenticated no llama confirmar_reserva directo');
 select ok(not has_function_privilege('authenticated', 'private.trg_registro_revdocs()', 'execute'), 'authenticated no llama el trigger de registro');
-select is((select valor ->> 'exigir_aprobacion_para_terminar' from public.configuracion where clave = 'revisiones'), 'false', 'configuracion: la exigencia total de aprobacion esta apagada por ahora (decide el dueño)');
+select is((select valor ->> 'exigir_aprobacion_para_terminar' from public.configuracion where clave = 'revisiones'), 'true', 'configuracion: la exigencia de aprobacion esta encendida');
 
 -- ---------- Registro de actividad ----------
 select tests.como(tests.id('sa'), 'aal2');

@@ -1,6 +1,6 @@
 -- Revisiones y aprobaciones (Modulo 3): crear, publicar, responder, versiones, reabrir y la atadura al avance.
 begin;
-select plan(81);
+select plan(89);
 \ir ../local/fixtures.sql
 \ir ../local/ayudas_proyectos.sql
 \ir ../local/ayudas_revdocs.sql
@@ -85,6 +85,9 @@ select tests.como(tests.id('admin_a'), 'aal2');
 select throws_ok($$select public.responder_revision(tests.rev('Diseno del portal'), 2, 'pido_cambios', 'me arrepenti de aprobar')$$, 'P0001', 'revision_no_pendiente', 'no se puede cambiar una aprobacion desde el portal');
 select throws_ok($$select public.reabrir_revision(tests.rev('Diseno del portal'), 'quiero reabrirla')$$, '42501', 'no_autorizado', 'el cliente no reabre revisiones');
 
+select tests.como(tests.id('sa'), 'aal2');
+select throws_ok($$select public.editar_hito(tests.hito('Portal A', 5), p_estado => 'en_curso')$$, 'P0001', 'reabrir_requiere_revision', 'un diseno aprobado no baja de "terminado" con editar_hito');
+select is(tests.estado_hito('Portal A', 5), 'terminado', 'el hito 5 aprobado sigue terminado');
 -- Solo el super admin la reabre, con motivo, y queda en el historial.
 select tests.como(tests.id('sa'), 'aal2');
 select throws_ok($$select public.reabrir_revision(tests.rev('Diseno del portal'), 'x')$$, '22023', 'datos_invalidos', 'reabrir exige un motivo');
@@ -129,27 +132,31 @@ select tests.como(tests.id('admin_a'), 'aal2');
 select public.responder_revision(tests.rev('Revision del sprint 2'), 1, 'pido_cambios', 'Falta el reporte en PDF');
 select is((select estado from public.sprints where id = tests.sprint('Portal A', 2)), 'en_curso', 'cambios pedidos: el sprint vuelve a "en curso"');
 
--- Con la opcion de configuracion encendida, ningun sprint se termina a mano.
-select tests.admin();
-update public.configuracion set valor = '{"exigir_aprobacion_para_terminar": true}' where clave = 'revisiones';
+-- Por defecto el candado esta ENCENDIDO: ningun sprint ni el hito 5 se termina a mano, ni siquiera sin revision.
 select tests.como(tests.id('sa'), 'aal2');
-select throws_ok($$select public.editar_hito(tests.hito('Portal A', 5), p_estado => 'terminado')$$, 'P0001', 'terminado_requiere_aprobacion', 'modo estricto: el hito 5 no se termina a mano');
+select throws_ok($$select public.editar_hito(tests.hito('Portal B', 5), p_estado => 'terminado')$$, 'P0001', 'terminado_requiere_aprobacion', 'candado encendido de origen: el hito 5 sin revision tampoco se termina a mano');
+select throws_ok($$select public.editar_sprint(tests.sprint('Portal A', 2), p_estado => 'terminado')$$, 'P0001', 'terminado_requiere_aprobacion', 'candado encendido de origen: un sprint con cambios pedidos no se termina a mano');
 select public.editar_hito(tests.hito('Portal A', 3), p_estado => 'terminado');
-select is(tests.estado_hito('Portal A', 3), 'terminado', 'modo estricto: los demas hitos se siguen moviendo');
+select is(tests.estado_hito('Portal A', 3), 'terminado', 'los demas hitos se siguen moviendo a mano');
+-- Un sprint aprobado no se "desaprueba" editando el avance: solo con reabrir_revision.
+select throws_ok($$select public.editar_sprint(tests.sprint('Portal A', 1), p_estado => 'en_curso')$$, 'P0001', 'reabrir_requiere_revision', 'un sprint aprobado no baja de "terminado" con editar_sprint');
+select is((select estado from public.sprints where id = tests.sprint('Portal A', 1)), 'terminado', 'el sprint aprobado sigue terminado');
+select lives_ok($$select public.reabrir_revision(tests.rev('Revision del sprint 1'), 'El cliente pidio revisar el sprint otra vez')$$, 'reabrir_revision si lo baja (con motivo)');
+select is((select estado from public.sprints where id = tests.sprint('Portal A', 1)), 'en_curso', 'reabierta: el sprint vuelve a en curso');
+select is((select count(*)::int from public.historial_proyecto where tipo = 'revision_reabierta' and detalle ->> 'motivo' like 'El cliente pidio%'), 1, 'y queda en el historial con su motivo');
 select tests.admin();
+-- Apagado el candado (decision del dueño), el hito 5 sin revision se mueve a mano como en el sprint 2.
 update public.configuracion set valor = '{"exigir_aprobacion_para_terminar": false}' where clave = 'revisiones';
-
--- Sin revision, como en el sprint 2, el hito 5 de otro proyecto se mueve a mano (compatibilidad).
 select tests.como(tests.id('sa'), 'aal2');
-select lives_ok($$select public.editar_hito(tests.hito('Portal B', 5), p_estado => 'terminado')$$, 'sin revision y sin modo estricto: se mueve a mano como en el sprint 2');
+select lives_ok($$select public.editar_hito(tests.hito('Portal B', 5), p_estado => 'terminado')$$, 'con el candado apagado por decision del dueño: se mueve a mano');
 
 -- ---------- Bandeja del super admin ----------
-select is((select jsonb_array_length(public.bandeja_revisiones() -> 'aprobado')), 1, 'bandeja: 1 aprobada (sprint 1)');
+select is((select jsonb_array_length(public.bandeja_revisiones() -> 'aprobado')), 0, 'bandeja: ninguna aprobada (la del sprint 1 se reabrio)');
 select is((select jsonb_array_length(public.bandeja_revisiones() -> 'cambios_pedidos')), 1, 'bandeja: 1 con cambios pedidos (sprint 2)');
-select is((select jsonb_array_length(public.bandeja_revisiones() -> 'esperando_a_websourcing')), 1, 'bandeja: 1 esperando a Websourcing (el diseno reabierto)');
+select is((select jsonb_array_length(public.bandeja_revisiones() -> 'esperando_a_websourcing')), 2, 'bandeja: 2 esperando a Websourcing (el diseno y el sprint 1, reabiertos)');
 select is((select jsonb_array_length(public.bandeja_revisiones() -> 'esperando_al_cliente')), 0, 'bandeja: ninguna esperando al cliente');
-select is((select jsonb_array_length(public.bandeja_revisiones(tests.id('empresa_b')) -> 'aprobado')), 0, 'bandeja: filtro por cliente');
-select is((public.bandeja_revisiones() -> 'aprobado' -> 0 ->> 'empresa_nombre'), 'Empresa A', 'bandeja: trae el nombre del cliente');
+select is((select jsonb_array_length(public.bandeja_revisiones(tests.id('empresa_b')) -> 'cambios_pedidos')), 0, 'bandeja: filtro por cliente');
+select is((public.bandeja_revisiones() -> 'cambios_pedidos' -> 0 ->> 'empresa_nombre'), 'Empresa A', 'bandeja: trae el nombre del cliente');
 
 select * from finish();
 rollback;

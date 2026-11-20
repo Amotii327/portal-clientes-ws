@@ -4,6 +4,7 @@ select plan(23);
 \ir ../local/fixtures.sql
 \ir ../local/ayudas_proyectos.sql
 select tests.crear_proyectos();
+select tests.permitir_terminar();   -- sprint 3: estas pruebas terminan hitos y sprints a mano (ver ayudas_proyectos.sql)
 select tests.como(tests.id('sa'), 'aal2');
 
 select is(tests.avance('Portal A'), '0/12=0.00', 'proyecto nuevo: 0 de 12 partes');

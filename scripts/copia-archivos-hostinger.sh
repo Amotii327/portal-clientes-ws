@@ -16,7 +16,9 @@
 #   RCLONE_CRYPT_PASSWORD / RCLONE_CRYPT_PASSWORD2              ya "ofuscadas" con `rclone obscure`
 #   DESTINO_COPIAS              carpeta en el VPS, por ejemplo /var/backups/portal-archivos
 # Opcionales: BUCKETS (por defecto los tres), RETENCION_DIAS (30), AVISO_URL (se llama al terminar bien),
-#             AVISO_FALLO_URL (se llama si falla), DRY_RUN=1 (no copia nada).
+#             AVISO_FALLO_URL (se llama si falla), DRY_RUN=1 (no copia nada),
+#             UMBRAL_CAIDA_PCT (20: freno si el origen pierde mas de ese % de archivos o de peso de un dia al otro),
+#             FORZAR_REDUCCION=1 (salta el freno UNA vez, solo con aprobacion del dueno).
 set -Eeuo pipefail
 umask 077
 
@@ -29,6 +31,7 @@ umask 077
 : "${DESTINO_COPIAS:?falta DESTINO_COPIAS}"
 BUCKETS="${BUCKETS:-documentos archivos-empresa capturas-revisiones}"
 RETENCION_DIAS="${RETENCION_DIAS:-30}"
+UMBRAL_CAIDA_PCT="${UMBRAL_CAIDA_PCT:-20}"
 HOY="$(TZ=America/Bogota date +%F)"
 EXTRA=()
 [ "${DRY_RUN:-0}" = "1" ] && EXTRA+=(--dry-run)
@@ -60,6 +63,25 @@ trap 'fallo $LINENO' ERR
 exec 9>"$DESTINO_COPIAS/.bloqueo"
 flock -n 9 || { log "ya hay una copia corriendo; salgo"; exit 0; }
 
+# Freno (M-1/M-2): si el origen aparece vacio o se encoge de golpe, NO se sincroniza: un sync lo trataria como
+# "el cliente borro todo" y moveria el espejo entero al historico. Se mide antes de tocar nada.
+medir() { # $1 = ruta rclone; imprime "archivos bytes" (0 0 si no existe)
+  local j; j="$(rclone size "$1" --json 2>/dev/null || echo '{"count":0,"bytes":0}')"
+  printf '%s %s' "$(printf '%s' "$j" | sed -n 's/.*"count":\([0-9]*\).*/\1/p')" "$(printf '%s' "$j" | sed -n 's/.*"bytes":\([0-9]*\).*/\1/p')"
+}
+for b in $BUCKETS; do
+  read -r n_o by_o < <(medir "SUPABASE:$b")
+  read -r n_e by_e < <(medir "CIFRADO:espejo/$b")
+  n_o="${n_o:-0}"; by_o="${by_o:-0}"; n_e="${n_e:-0}"; by_e="${by_e:-0}"
+  if [ "$n_e" -gt 0 ] && [ "${FORZAR_REDUCCION:-0}" != "1" ]; then
+    if [ "$n_o" -eq 0 ] || [ $(( (n_e - n_o) * 100 )) -gt $(( n_e * UMBRAL_CAIDA_PCT )) ] \
+       || [ $(( (by_e - by_o) * 100 )) -gt $(( by_e * UMBRAL_CAIDA_PCT )) ]; then
+      log "FRENO en $b: origen $n_o archivos/$by_o bytes, copia $n_e archivos/$by_e bytes. No se sincroniza. Revisar a mano."
+      false
+    fi
+  fi
+done
+
 for b in $BUCKETS; do
   log "bucket $b: copiando"
   # sync deja el espejo igual al origen; lo que cambia o se borra va a historico/<fecha> (no se pierde).
@@ -74,10 +96,18 @@ for b in $BUCKETS; do
   log "bucket $b: listo"
 done
 
-# Retencion: se borra del historico lo que tenga mas de RETENCION_DIAS dias (el espejo actual no se toca).
+# Retencion: cuenta desde que el archivo ENTRA al historico (la carpeta del dia en que desaparecio o cambio),
+# no desde la fecha del archivo. Se borran las carpetas historico/AAAA-MM-DD con mas de RETENCION_DIAS dias.
 if [ "${DRY_RUN:-0}" != "1" ]; then
-  rclone delete "CIFRADO:historico" --min-age "${RETENCION_DIAS}d" --log-file "$LOG" --log-level NOTICE
-  rclone rmdirs "CIFRADO:historico" --leave-root --log-file "$LOG" --log-level NOTICE
+  LIMITE="$(TZ=America/Bogota date -d "-${RETENCION_DIAS} days" +%F)"
+  while read -r d; do
+    d="${d%/}"
+    [[ "$d" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || continue
+    if [[ "$d" < "$LIMITE" ]]; then
+      log "retencion: se borra historico/$d"
+      rclone purge "CIFRADO:historico/$d" --log-file "$LOG" --log-level NOTICE
+    fi
+  done < <(rclone lsf "CIFRADO:historico" --dirs-only 2>/dev/null || true)
   find "$DESTINO_COPIAS" -maxdepth 1 -name 'copia-*.log' -mtime +"$RETENCION_DIAS" -delete
 fi
 

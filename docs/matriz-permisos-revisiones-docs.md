@@ -14,6 +14,7 @@ Se lee igual que la matriz principal: cada fila es una puerta y cada columna, qu
 | | Admin cliente / Equipo | Las de **su** empresa, **sin borradores**. Todos los miembros activos las ven (el equipo, por defecto, ve avance y revisiones) | No |
 | `revision_versiones` | Super admin | Todas, también el borrador de una versión | Solo con funciones. Una versión publicada ya no cambia ni se borra (trigger) |
 | | Admin / Equipo | Solo las **publicadas** de revisiones que ven | No |
+| `v_aprobaciones` (vista para leer) | Cliente y super admin, de su empresa | Sin IP, usuario ni user-agent; usar esta vista, no `select *` de la tabla |
 | `aprobaciones` | Super admin | Todas (columnas públicas; la evidencia está en el registro) | **Nadie**: solo se agrega con `responder_revision` (trigger: ni cambio ni borrado ni truncado, para ningún rol) |
 | | Admin / Equipo | Las de su empresa, **sin** `ip`, `user_id` ni `user_agent` (permiso de columna) | No |
 | `documentos` | Super admin | Todos | Funciones |
