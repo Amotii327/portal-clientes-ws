@@ -3,6 +3,7 @@
 // Reglas de acceso resumidas de docs/matriz-permisos.md. Todos los datos son inventados. Puerto: 54399.
 import http from 'node:http';
 import crypto from 'node:crypto';
+import * as TM from './tickets-mant.mjs';
 
 const PUERTO = Number(process.env.MOCK_PUERTO || 54399);
 const CLAVE = 'ClaveSegura123';
@@ -52,6 +53,7 @@ function reiniciar() {
   delete S.perfiles[S.usuarios['existente@cliente.test'].id];
   inv('tok-otro-555', 'otro@cliente.test');
   S.invitaciones.at(-1).empresa_id = E.A;
+  TM.sembrar(S, { usuario, miembro, emp }); // tickets y mantenimiento (tests/mock-supabase/tickets-mant.mjs)
 }
 reiniciar();
 
@@ -123,6 +125,8 @@ function leerTabla(tabla, q, params) {
   }
   if (tabla === 'invitaciones') return filtrar(S.invitaciones.filter((i) => esSuper || (admin && i.empresa_id === eid)), params).map(sinSecretos);
   if (tabla === 'preferencias_usuario') return filtrar(Object.values(S.preferencias).filter((p) => p.user_id === c.user_id), params);
+  const tm = TM.leer(S, tabla, c);
+  if (tm) return filtrar(tm, params);
   return [];
 }
 
@@ -195,7 +199,10 @@ function rpc(nombre, a, q, res) {
       if (S.supers.has(a.p_user_id)) return falla('no_se_puede_bloquear_super_admin');
       p.bloqueado = a.p_bloqueado ?? true; return null;
     }
-    default: return falla('datos_invalidos');
+    default: {
+      const r = TM.rpc(S, nombre, a, c, falla);
+      return r === TM.NO_ES_MIO ? falla('datos_invalidos') : r;
+    }
   }
 }
 
@@ -214,11 +221,14 @@ const servidor = http.createServer(async (req, res) => {
   res.setHeader('access-control-allow-headers', req.headers['access-control-request-headers'] || '*');
   res.setHeader('access-control-expose-headers', 'content-range');
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
-  const ruta = url.pathname; const body = ['POST', 'PUT', 'PATCH'].includes(req.method) ? await cuerpo(req) : {};
+  const ruta = url.pathname;
   const q = quien(req);
+  if (ruta.startsWith('/storage/v1/')) return TM.almacenamiento(S, req, res, ruta, ctxActivo(q) ?? {});
+  const body = ['POST', 'PUT', 'PATCH'].includes(req.method) ? await cuerpo(req) : {};
   S.bitacora.push({ m: req.method, ruta });
 
   // ---- control para las pruebas ----
+  if (ruta === '/__tm') return json(res, 200, TM.estado(S));
   if (ruta === '/__reset') { reiniciar(); return json(res, 200, { ok: true }); }
   if (ruta === '/__estado') return json(res, 200, { ultimoToken: S.ultimoToken, preferencias: S.preferencias, empresas: S.empresas, miembros: S.miembros, perfiles: S.perfiles, exigir2fa: S.config.exigir_2fa_admin_cliente, invitaciones: S.invitaciones.map(sinSecretos), bitacora: S.bitacora.length });
   if (ruta === '/__confirmar') { const u = S.usuarios[url.searchParams.get('correo')]; if (u) u.confirmado = true; return json(res, 200, { ok: !!u }); }
@@ -307,6 +317,11 @@ const servidor = http.createServer(async (req, res) => {
         tocadas.forEach((x) => Object.assign(x, body));
       }
       return (req.headers.prefer || '').includes('return=representation') ? json(res, 200, tocadas) : (res.writeHead(204), res.end());
+    }
+    if (req.method === 'POST' && c && tabla !== 'preferencias_usuario') {
+      const r = TM.insertar(S, tabla, body, c, (cod) => dbErr(res, cod));
+      if (res.writableEnded) return;
+      if (r === true) { res.writeHead(201); return res.end(); }
     }
     if (req.method === 'POST' && tabla === 'preferencias_usuario' && c) {
       if (body.user_id !== c.user_id) return respuestaErr(res, 403, { code: '42501', message: 'permission denied', details: null, hint: null });

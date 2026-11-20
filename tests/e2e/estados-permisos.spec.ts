@@ -135,13 +135,13 @@ test.describe('Pantallas de muestra', () => {
     await page.goto('/cliente/dinero');
     await expect(page).toHaveURL(/\/entrar/);
     await entrarCliente(page, 'equipo-dinero@cliente.test');
-    for (const ruta of ['/cliente/revisiones', '/cliente/tickets', '/cliente/documentos', '/cliente/dinero']) {
+    for (const ruta of ['/cliente/revisiones', '/cliente/documentos', '/cliente/dinero']) {
       await page.goto(ruta);
       await expect(page.getByText('Disponible en el próximo sprint')).toBeVisible();
     }
     // navegar entre pantallas de muestra no pierde la sesión
-    await page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: /Tickets/ }).click();
-    await expect(page).toHaveURL(/\/cliente\/tickets/);
+    await page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: /Documentos/ }).click();
+    await expect(page).toHaveURL(/\/cliente\/documentos/);
     await expect(page.getByText('Disponible en el próximo sprint')).toBeVisible();
   });
 
