@@ -5,13 +5,14 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox, Field, Input } from '@/components/ui/form';
-import { Logo } from '@/components/shell/shell';
+import { ALTO_PANTALLA, Logo } from '@/components/shell/shell';
+import { cn } from '@/lib/utils';
 import { Enlace, ir } from '@/lib/router';
 import { useStore } from '@/lib/store';
 
 export function EntradaLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid min-h-[calc(100dvh-2.75rem)] lg:grid-cols-2">
+    <div className={cn('grid lg:grid-cols-2', ALTO_PANTALLA)}>
       <div className="relative hidden flex-col justify-between overflow-hidden border-r border-border bg-surface p-10 lg:flex">
         <div className="pointer-events-none absolute -left-24 top-1/3 size-96 rounded-full bg-primary/20 blur-3xl" aria-hidden />
         <Logo />
@@ -31,7 +32,7 @@ export function EntradaLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Clave({ id, label, hint, error, value, onChange, autoComplete }: { id: string; label: string; hint?: string; error?: string; value: string; onChange: (v: string) => void; autoComplete?: string }) {
+export function Clave({ id, label, hint, error, value, onChange, autoComplete }: { id: string; label: string; hint?: string; error?: string; value: string; onChange: (v: string) => void; autoComplete?: string }) {
   const [ver, setVer] = React.useState(false);
   return (
     <Field label={label} htmlFor={id} hint={hint} error={error}>

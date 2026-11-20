@@ -8,6 +8,15 @@ export type Tema = 'oscuro' | 'claro';
 
 interface Toast { id: number; texto: string }
 
+/** Datos de la persona real que entró (solo en la app real; en el prototipo no existe). Vienen de mi_contexto(). */
+export interface ContextoReal {
+  rol: Rol;
+  nombre: string;
+  nombreEmpresa: string | null;
+  permisos: { aprobar: boolean; verDinero: boolean; verTodosTickets: boolean; subirArchivos: boolean } | null;
+  tema: Tema;
+}
+
 interface Store {
   rol: Rol;
   setRol: (r: Rol) => void;
@@ -27,6 +36,7 @@ interface Store {
   registrar: (accion: string, empresa: string) => void;
   avisar: (texto: string) => void;
   toasts: Toast[];
+  real?: ContextoReal;
   can: { aprobar: boolean; verDinero: boolean; verTodosTickets: boolean; subirArchivos: boolean; esAdmin: boolean; soloLectura: boolean };
 }
 
@@ -37,17 +47,18 @@ export const useStore = () => {
   return s;
 };
 
-export function StoreProvider({ children }: { children: React.ReactNode }) {
-  const [rol, setRol] = React.useState<Rol>('admin');
+export function StoreProvider({ children, real, alCambiarTema }: { children: React.ReactNode; real?: ContextoReal; alCambiarTema?: (t: Tema) => Promise<void> | void }) {
+  const [rol, setRol] = React.useState<Rol>(real?.rol ?? 'admin');
   const [empresas, setEmpresas] = React.useState<Empresa[]>(EMPRESAS_INICIALES);
   const [empresaId, setEmpresaId] = React.useState('ejemplo');
   const [estadoPantalla, setEstadoPantalla] = React.useState<EstadoPantalla>('normal');
-  const [tema, setTemaState] = React.useState<Tema>('claro');
+  const [tema, setTemaState] = React.useState<Tema>(real?.tema ?? 'claro');
   const [verComo, setVerComo] = React.useState(false);
   const [actividad, setActividad] = React.useState<Actividad[]>(ACTIVIDAD_INICIAL);
   const [toasts, setToasts] = React.useState<Toast[]>([]);
 
   React.useEffect(() => {
+    if (real) return; // en la app real el tema sale de la preferencia guardada del usuario
     try {
       const t = localStorage.getItem('ws-tema');
       if (t === 'claro' || t === 'oscuro') setTemaState(t);
@@ -56,6 +67,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const setTema = (t: Tema) => {
     setTemaState(t);
     try { localStorage.setItem('ws-tema', t); } catch {}
+    try {
+      Promise.resolve(alCambiarTema?.(t)).catch(() => avisar('Cambiamos el tema, pero no pudimos guardar tu preferencia. Intenta de nuevo más tarde.'));
+    } catch {}
   };
   React.useEffect(() => {
     document.documentElement.dataset.theme = tema === 'claro' ? 'light' : 'dark';
@@ -82,14 +96,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [empresas, registrar]);
 
-  const empresa = empresas.find((e) => e.id === empresaId) ?? empresas[0];
+  const base = empresas.find((e) => e.id === empresaId) ?? empresas[0];
+  const empresa = real?.nombreEmpresa ? { ...base, nombre: real.nombreEmpresa } : base;
   const usuario: Miembro | null =
     rol === 'super' ? null
     : rol === 'admin' ? empresa.miembros.find((m) => m.rol === 'admin') ?? null
     : empresa.miembros.find((m) => m.rol === 'equipo' && m.estado === 'activo' && !m.permisos.verDinero) ?? empresa.miembros.find((m) => m.rol === 'equipo') ?? empresa.miembros[0];
 
   const esAdmin = rol === 'admin';
-  const perm = usuario?.permisos;
+  const perm = real ? real.permisos ?? undefined : usuario?.permisos;
   const can = {
     aprobar: esAdmin || (rol === 'equipo' && !!perm?.aprobar),
     verDinero: esAdmin || rol === 'super' || (rol === 'equipo' && !!perm?.verDinero),
@@ -101,7 +116,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const value: Store = {
     rol, setRol, empresas, empresaId, setEmpresaId, empresa, usuario, estadoPantalla, setEstadoPantalla, tema, setTema,
-    verComo, setVerComo, actividad, mutar, registrar, avisar, toasts, can,
+    verComo, setVerComo, actividad, mutar, registrar, avisar, toasts, can, real,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

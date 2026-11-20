@@ -3,9 +3,11 @@ import * as React from 'react';
 import { AlertTriangle, Inbox, Lock, PauseCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Enlace, MODO_REAL } from '@/lib/router';
 import { useStore } from '@/lib/store';
+import { CONTACTO_SOPORTE } from '@/lib/app/config';
 
-function Centro({ icono, titulo, texto, children, tono = 'neutral' }: { icono: React.ReactNode; titulo: string; texto: string; children?: React.ReactNode; tono?: 'neutral' | 'danger' | 'warning' }) {
+export function Centro({ icono, titulo, texto, children, tono = 'neutral' }: { icono: React.ReactNode; titulo: string; texto: string; children?: React.ReactNode; tono?: 'neutral' | 'danger' | 'warning' }) {
   const t = { neutral: 'bg-surface-2 text-muted-foreground', danger: 'bg-danger/15 text-danger', warning: 'bg-warning/15 text-warning' }[tono];
   return (
     <Card className="flex flex-col items-center px-6 py-12 text-center">
@@ -35,23 +37,23 @@ export function EstadoCargando() {
 export function EstadoError({ onReintentar }: { onReintentar?: () => void }) {
   const { setEstadoPantalla } = useStore();
   return (
-    <Centro tono="danger" icono={<AlertTriangle className="size-7" />} titulo="No pudimos cargar esta pantalla" texto="Algo salió mal de nuestro lado. Tu información está a salvo. Intenta de nuevo; si sigue igual, crea un ticket y lo revisamos.">
+    <Centro tono="danger" icono={<AlertTriangle className="size-7" />} titulo="No pudimos cargar esta pantalla" texto={MODO_REAL ? 'Algo salió mal de nuestro lado. Tu información está a salvo. Intenta de nuevo; si sigue igual, escríbenos y lo revisamos.' : 'Algo salió mal de nuestro lado. Tu información está a salvo. Intenta de nuevo; si sigue igual, crea un ticket y lo revisamos.'}>
       <Button onClick={() => (onReintentar ?? (() => setEstadoPantalla('normal')))()}><RefreshCw />Reintentar</Button>
-      <Button variant="outline" asChild><a href="#/cliente/tickets/nuevo">Crear un ticket</a></Button>
+      {!MODO_REAL && <Button variant="outline" asChild><Enlace to="/cliente/tickets/nuevo">Crear un ticket</Enlace></Button>}
     </Centro>
   );
 }
 
-export const SinPermiso = ({ texto }: { texto?: string }) => (
+export const SinPermiso = ({ texto, inicio = '/cliente/inicio' }: { texto?: string; inicio?: string }) => (
   <Centro tono="warning" icono={<Lock className="size-7" />} titulo="No tienes permiso para ver esto" texto={texto ?? 'El administrador de tu empresa decide quién ve esta parte. Si la necesitas, pídele que te dé acceso.'}>
-    <Button variant="outline" asChild><a href="#/cliente/inicio">Volver al inicio</a></Button>
+    <Button variant="outline" asChild><Enlace to={inicio}>Volver al inicio</Enlace></Button>
   </Centro>
 );
 
-export const EmpresaPausada = () => (
+export const EmpresaPausada = ({ empresa }: { empresa?: string }) => (
   <div className="mx-auto max-w-xl py-10">
-    <Centro tono="warning" icono={<PauseCircle className="size-7" />} titulo="Tu cuenta está en pausa" texto="Por ahora no puedes entrar a este portal. No se ha borrado nada: tu información sigue guardada. Escríbenos y la reactivamos.">
-      <Button asChild><a href="mailto:soporte@ejemplo.co">Escribir al Equipo Websourcing</a></Button>
+    <Centro tono="warning" icono={<PauseCircle className="size-7" />} titulo={empresa ? `${empresa} está en pausa` : 'Tu cuenta está en pausa'} texto="Por ahora no puedes entrar a este portal. No se ha borrado nada: tu información sigue guardada. Escríbenos y la reactivamos.">
+      <Button asChild><a href={`mailto:${CONTACTO_SOPORTE}`}>Escribir al Equipo Websourcing</a></Button>
     </Centro>
   </div>
 );

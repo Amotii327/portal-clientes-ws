@@ -8,7 +8,7 @@ import { leerEntornoSupabase } from './env';
  * (sprint 1, historia de login). Ejemplo: ['/app', '/admin'].
  * Las rutas que NO deben pedir sesión (entrar, activar cuenta, recuperar contraseña) simplemente no van aquí.
  */
-export const RUTAS_PRIVADAS: string[] = [];
+export const RUTAS_PRIVADAS: string[] = ['/admin', '/cliente'];
 export const RUTA_ENTRAR = '/entrar';
 
 /**

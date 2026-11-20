@@ -82,6 +82,10 @@
 
 @layer components {
   :root[data-theme='light'] a.text-primary-text:not([aria-current]) { text-decoration: underline; text-underline-offset: 3px; }
+  /* Logo: la variante blanca se usa en el tema Oscuro (sin depender de ningún proveedor de estado). */
+  .logo-oscuro { display: none; }
+  :root:not([data-theme='light']) .logo-claro { display: none; }
+  :root:not([data-theme='light']) .logo-oscuro { display: block; }
   .page-gutter { padding-inline: var(--gutter); }
   .skeleton { @apply animate-pulse rounded bg-surface-2; }
   .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
