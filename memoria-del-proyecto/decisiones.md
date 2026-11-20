@@ -66,3 +66,10 @@ Todas aprobadas por el dueño el 2026-11-19 ("sí a todo" a las propuestas de la
 ## D-019 · Facturación del cliente adelantada al sprint 1 · 2026-11-20
 - **Qué se decidió:** la pantalla `/cliente/facturacion` (datos de facturación de la empresa, parte del Módulo 4 de los requerimientos aprobados) queda en el sprint 1, aunque el plan la ponía después. No es alcance nuevo.
 - **Aprobó:** dueño, 2026-11-20
+
+## D-020 · "Ver como el cliente" · 2026-11-27
+- **Qué se propone (Desarrollo, pendiente de aprobación del dueño):** el super admin con 2FA inicia una sesión "ver como" guardada en el servidor (tabla `sesiones_ver_como`, no en el token), de una empresa y un rol (admin del cliente o equipo con permisos elegidos). Dura máximo 60 minutos, ve exactamente lo que ve el cliente (mismas reglas RLS) y es de solo lectura: mientras dura, deja de actuar como super admin y todas las tablas rechazan escrituras con un trigger. El inicio y el fin quedan en el registro de actividad. No usa clave de sistema.
+- **Qué se descartó:** una "vista aparte" con funciones de lectura duplicadas (se desincroniza con lo que ve el cliente) y marcar la empresa en el token (lo controla el navegador).
+- **Costo para el dueño:** mientras está en "ver como", no puede editar nada en esa sesión del navegador; debe salir con el botón "Salir". Si abre otra pestaña con el mismo inicio de sesión, también queda en solo lectura.
+- **Aprobó:** pendiente
+

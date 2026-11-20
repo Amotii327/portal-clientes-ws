@@ -26,6 +26,25 @@ const MENSAJES: Record<string, string> = {
   no_se_puede_bloquear_super_admin: 'Esa cuenta no se puede bloquear.',
   usuario_no_encontrado: 'No encontramos a esa persona.',
   registro_solo_por_invitacion: 'Para crear una cuenta necesitas una invitación de tu empresa.',
+  // Sprint 2: proyectos, hitos, plan de sprints y "ver como"
+  proyecto_no_encontrado: 'No encontramos ese proyecto.',
+  proyecto_cerrado: 'Este proyecto está terminado o cancelado. Reábrelo para poder cambiarlo.',
+  hito_no_encontrado: 'No encontramos ese hito.',
+  hito_derivado: 'El estado del hito de sprints se calcula solo a partir de los sprints.',
+  hito_no_ocultable: 'Solo el hito de mantenimiento se puede ocultar o mostrar.',
+  fechas_invalidas: 'Revisa las fechas: la final no puede ser anterior a la inicial ni la fecha real puede ser futura.',
+  retraso_requiere_lado: 'Para cambiar una fecha elige quién causa el cambio: Websourcing o el cliente.',
+  retraso_requiere_motivo: 'Para cambiar una fecha escribe el motivo (mínimo 5 caracteres).',
+  retraso_requiere_que_falta: 'Si se espera al cliente, escribe qué es lo que falta.',
+  plan_ya_aprobado: 'El plan ya está aprobado. Para cambiarlo, edita los sprints y escribe el motivo.',
+  plan_no_aprobado: 'El plan de sprints todavía es una propuesta: apruébalo antes de iniciar sprints.',
+  plan_vacio: 'El plan no tiene sprints. Agrega al menos uno para aprobarlo.',
+  plan_requiere_motivo: 'El plan ya está aprobado: escribe el motivo del cambio (mínimo 5 caracteres).',
+  sprint_no_encontrado: 'No encontramos ese sprint.',
+  sprint_ya_iniciado: 'Un sprint que ya empezó no se puede quitar.',
+  orden_invalido: 'El orden no es válido: incluye todos los sprints y no muevas los que ya empezaron.',
+  ver_como_solo_lectura: 'Estás viendo como el cliente: aquí solo se puede mirar. Sal del modo "ver como" para hacer cambios.',
+  sin_sesion_ver_como: 'No hay una sesión de "ver como" abierta.',
 };
 
 export const MENSAJE_GENERICO = 'No pudimos completar la acción. Intenta de nuevo y, si sigue, escríbenos.';

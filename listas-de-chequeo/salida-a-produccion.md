@@ -5,7 +5,7 @@
 - [ ] Revisión de seguridad completa hecha por QA con Opus, sin problemas graves abiertos.
 - [ ] Pruebas de todo el sistema y de velocidad pasan.
 - [ ] Auditoría del Auditor sin hallazgos críticos ni altos abiertos.
-- [ ] Portal de clientes (servidor): primer super admin creado a mano (pasos en `README.md`), con 2FA activado y códigos de respaldo guardados fuera del portal.
+- [ ] Portal de clientes (servidor): primer super admin creado a mano (pasos en `README.md`), con 2FA activado y códigos de respaldo guardados fuera del portal. Después de crearlo, comprobado que un correo sin invitación sigue sin poder registrarse (el gancho nunca se apagó).
 - [ ] Portal de clientes (servidor): registro cerrado (gancho `before_user_created` activo; sin invitación nadie crea cuenta) y límites de intentos y captcha de Auth activos (riesgo aceptado: el gancho permite saber qué correos tienen invitación).
 - [ ] Portal de clientes (servidor): `seguridad.exigir_2fa_admin_cliente` en `true` (2FA del admin del cliente, D-014), comprobado con una cuenta de prueba.
 - [ ] Portal de clientes (servidor): plan Pro y gancho `password_verification_attempt` encendido (bloqueo de 5 intentos / 15 min), comprobado con una cuenta de prueba; revisión contra contraseñas filtradas activa.

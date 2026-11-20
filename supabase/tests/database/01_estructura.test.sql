@@ -1,7 +1,7 @@
 -- Estructura y cerraduras generales. Aqui esta la prueba que FALLA si alguna tabla del esquema
 -- public queda sin RLS (arquitectura, seccion 4).
 begin;
-select plan(22);
+select plan(24);
 
 -- 1. RLS activa en TODAS las tablas de public (tablas normales y particionadas).
 select is_empty(
@@ -11,7 +11,7 @@ select is_empty(
 
 -- 2. Las 10 tablas del sprint 1 existen.
 select is((select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
-            where n.nspname = 'public' and c.relkind = 'r'), 11, 'hay 11 tablas en public (sprint 1)');
+            where n.nspname = 'public' and c.relkind = 'r'), 19, 'hay 19 tablas en public (sprints 1 y 2)');
 
 -- 3. Toda tabla con RLS tiene politicas, salvo super_admins (cerrada a proposito).
 select is_empty(
@@ -95,6 +95,7 @@ select is_empty(
 select is_empty(
   $$select c.table_name::text from information_schema.columns c
      where c.table_schema = 'public' and c.column_name = 'empresa_id'
+       and ('public.' || c.table_name)::regclass in (select oid from pg_class where relkind = 'r')
        and not exists (select 1 from pg_trigger t join pg_proc p on p.oid = t.tgfoid
                         where t.tgrelid = ('public.' || c.table_name)::regclass and p.proname = 'empresa_id_inmutable')$$,
   'toda tabla con empresa_id tiene el trigger que la hace inmutable');
@@ -112,6 +113,23 @@ select is_empty(
      where n.nspname = 'public' and c.relkind in ('v', 'm')
        and not coalesce(c.reloptions::text like '%security_invoker=true%', false)$$,
   'toda vista de public es security_invoker');
+
+-- 15. Sprint 2: toda tabla de public (salvo 3 excepciones) lleva la cerradura de solo lectura del modo "ver como".
+select is_empty(
+  $$select c.relname::text from pg_class c join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relkind in ('r', 'p')
+       and c.relname not in ('sesiones_ver_como', 'registro_actividad', 'intentos_acceso')
+       and not exists (select 1 from pg_trigger t join pg_proc p on p.oid = t.tgfoid
+                        where t.tgrelid = c.oid and p.proname = 'bloquear_escritura_ver_como')$$,
+  'toda tabla tiene la cerradura de solo lectura del modo "ver como"');
+
+-- 16. proyectos: llaves compuestas en ambos ordenes para que otros modulos se enlacen con ella.
+select is((select count(*)::int from pg_constraint where conrelid = 'public.proyectos'::regclass and contype = 'u'
+            and conkey in (array[(select attnum from pg_attribute where attrelid = 'public.proyectos'::regclass and attname = 'empresa_id'),
+                                 (select attnum from pg_attribute where attrelid = 'public.proyectos'::regclass and attname = 'id')],
+                           array[(select attnum from pg_attribute where attrelid = 'public.proyectos'::regclass and attname = 'id'),
+                                 (select attnum from pg_attribute where attrelid = 'public.proyectos'::regclass and attname = 'empresa_id')])),
+  2, 'proyectos tiene unique (empresa_id, id) y unique (id, empresa_id)');
 
 select * from finish();
 rollback;
