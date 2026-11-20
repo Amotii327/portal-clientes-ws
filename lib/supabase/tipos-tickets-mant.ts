@@ -77,6 +77,8 @@ export interface HoraRegistradaFila {
   id: string; empresa_id: string; ticket_id: string; bolsa_id: string; origen_id: string | null; mes: string; fecha_trabajo: string;
   horas: number; estado: EstadoHora; registrado_por: string; registrado_en: string; revisado_por: string | null;
   revisado_en: string | null; motivo_revision: string | null; decidido_cliente_por: string | null; decidido_cliente_en: string | null;
+  /** true en horas de una solicitud de cambio: se anotan para costo y no descuentan de la bolsa. */
+  sin_descuento: boolean;
   actualizado_en: string;
 }
 /** Solo super admin. */

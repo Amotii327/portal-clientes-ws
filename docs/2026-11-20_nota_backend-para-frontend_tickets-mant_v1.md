@@ -35,3 +35,11 @@ Equipo Websourcing · Desarrollo
 - Correos: los avisos se guardan en la cola `outbox_correos`; todavía no hay envío real (falta conectar el servicio de correo). Esa tabla no tiene permisos para `service_role`; el módulo de notificaciones deberá concederlos y ajustar la prueba 01.
 - Hito 13 y cuota mensual generada (`pagos_programados`): quedan para el sprint de dinero; no se integró aquí.
 - Cambios en archivos compartidos: el conteo de tablas en `01_estructura.test.sql` (31), `scripts/test-db.sh` (carga `mock_extra_*.sql`) y el mock de Storage `supabase/tests/local/mock_extra_storage_tickets.sql` (solo pruebas).
+
+## Cambios tras la revisión de Calidad (migración `20270108000800`)
+
+- `horas_registradas.sin_descuento` es verdadero en las horas de solicitudes de cambio (no descuentan de la bolsa). Ya no existe el error `ticket_fuera_de_bolsa` al anotar horas.
+- Errores nuevos: `horas_requeridas` (activar plan personalizado sin horas) y `ticket_en_progreso` (cobrar un ticket ya en trabajo).
+- El cierre del mes espera mientras haya horas pendientes de revisión; la bolsa se muestra abierta hasta entonces.
+- Los correos en cola ya no llevan el título del ticket: el módulo de correos debe leerlo con permisos al armar el mensaje.
+- Las horas aprobadas ya no traen nota del dueño (`motivo_revision` queda vacío al aprobar).

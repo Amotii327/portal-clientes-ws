@@ -36,6 +36,8 @@ export const MENSAJES_TICKETS_MANT: Record<string, string> = {
   parametro_invalido: 'Hay un parámetro del plan que no se reconoce.',
   horario_invalido: 'El horario de atención no es válido.',
   zona_invalida: 'La zona horaria no es válida.',
+  horas_requeridas: 'Para activar un plan personalizado indica las horas incluidas al mes.',
+  ticket_en_progreso: 'Este ticket ya está en trabajo: no se puede proponer un cobro. Decide antes de empezar.',
   cuota_requerida: 'Para activar el plan indica la cuota mensual.',
   fecha_inicio_requerida: 'Para activar el plan indica la fecha de inicio.',
   fecha_invalida: 'La fecha no es válida (no puede ser futura ni de una bolsa inexistente).',

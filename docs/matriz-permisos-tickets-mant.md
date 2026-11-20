@@ -49,14 +49,27 @@ Nadie borra filas. Una empresa nunca ve datos de otra. En modo "ver como el clie
 - Bolsa de horas (D-007): las horas no usadas se pierden al cerrar el mes, salvo que el plan tenga `acumular_horas`; en ese caso se arrastra como máximo el sobrante de un mes de horas propias.
 - Horas (D-008): las anota el super admin y el dueño las revisa antes de descontar. Aviso al 80 % y al 100 %, con historial.
 - Cierre automático: tickets `resuelto` sin confirmar se cierran a los 3 días.
-- Los textos libres de tickets no se guardan en `registro_actividad` ni en la cola de correos.
+- Los textos libres de tickets (título, mensajes) no se guardan en `registro_actividad` ni en la cola de correos.
 
-## Interpretaciones tomadas (a confirmar por el dueño)
+## Interpretaciones tomadas (9)
+
+Aceptadas por Calidad como lecturas válidas: 2 y 4. Corregida tras la revisión: 5. Las demás siguen pendientes de confirmación del dueño.
 
 1. Un día hábil equivale a una jornada completa de horario hábil.
-2. Tickets de soporte son error, pregunta y acceso; las solicitudes de cambio no cuentan como soporte.
+2. (Lectura aceptada.) Tickets de soporte son error, pregunta y acceso; las solicitudes de cambio no cuentan como soporte, así que `fuera_de_plan` también aplica a pregunta y acceso.
 3. `fuera_de_plan` se evalúa al crear el ticket. El ticket se puede crear, pero no se trabaja sin decisión del dueño.
-4. Registrar y revisar horas lo hace el super admin (la versión 1 no tiene un rol de personal separado).
-5. Las horas de cambios y de tickets fuera de plan no descuentan de la bolsa.
-6. Los valores de los planes Básico, Estándar y Premium son propuestas de Desarrollo, sin precios; el dueño las confirma.
-7. El semáforo no se detiene en `esperando_cliente`.
+4. (Lectura aceptada.) Registrar y revisar horas lo hace el super admin; la versión 1 no tiene un rol de personal separado.
+5. (Corregida, Módulo 10.) Las horas se anotan en todos los tickets y descuentan de la bolsa todas, salvo las de solicitudes de cambio: se cotizan aparte (CLAUDE.md sección 5), quedan anotadas para costo (`sin_descuento`) y no tocan la bolsa.
+6. Los valores de los planes Básico, Estándar y Premium (incluidas las horas) son propuestas de Desarrollo, sin precios; el dueño las confirma.
+7. El semáforo no se detiene en `esperando_cliente`; solo mide la primera respuesta.
+8. Rechazar el cobro de un ticket lo cierra (`cobro_rechazado`).
+9. "3 días" del cierre automático son días corridos; se omiten empresas pausadas; la bolsa agotada solo frena el paso a `en_progreso` de tickets nuevos, no los que ya están en curso.
+
+## Correcciones de Calidad (migración `20270108000800`)
+
+- I-1: la cola de correos guarda solo identificadores, tipo y datos de control (nunca título ni texto del cliente).
+- I-2 (elegido: el corte espera): `cerrar_mes_bolsas` no cierra una bolsa mientras haya horas en `pendiente_dueno`; el dueño las revisa y se imputan a la bolsa del mes en que se trabajaron. El corte corre a diario, así que cierra al día siguiente de la revisión. Si la bolsa del mes siguiente ya existía, recibe lo arrastrado.
+- M-1: al aprobar horas no se guarda nota (el cliente ve las filas aprobadas); la nota solo existe al rechazar, y esas filas no las ve el cliente.
+- M-2: un plan sin `horas_mes` mayor que 0 no se activa (`horas_requeridas`).
+- M-3: no se decide "cobrar" en un ticket en `en_progreso`, `esperando_cliente` o `resuelto` (`ticket_en_progreso`).
+- M-5: el bucket `portal-tickets` se corrige (privado, 50 MB, tipos permitidos) aunque ya existiera.

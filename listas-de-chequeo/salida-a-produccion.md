@@ -12,6 +12,8 @@
 - [ ] Portal de clientes (servidor): IP verificada contra el proyecto real de Supabase (qué cabecera llega y `configuracion('red')` ajustada). Hasta entonces la IP es dato de apoyo, no prueba única.
 - [ ] Ambiente de producción separado del de prueba (base de datos y claves propias).
 - [ ] Claves en el gestor de secretos.
+- [ ] Tareas programadas de tickets y mantenimiento: `private.cerrar_tickets_vencidos()` (cada hora) y `private.cerrar_mes_bolsas()` (diaria). Opción A: pg_cron activo (plan Pro de Supabase) y los dos trabajos `portal-cerrar-tickets-vencidos` y `portal-corte-mensual-mantenimiento` visibles en `cron.job` (si la extensión se activa después de aplicar las migraciones, programarlos a mano). Opción B: un trabajo programado en el VPS (D-010) que ejecute esas dos funciones por conexión directa a la base. Verificar que corrieron al menos una vez.
+- [ ] Bucket `portal-tickets` en el Supabase real: privado, límite de 50 MB y solo tipos imagen, video y audio.
 - [ ] Copias de seguridad automáticas activas y una restauración probada.
 - [ ] Monitoreo y aviso de caídas activos.
 - [ ] Dominio y certificado de seguridad listos.
