@@ -5,6 +5,7 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import { FUNCIONES_S2, funcionS2, leerProyectos, sembrarProyectos } from './proyectos.mjs';
 import * as revdocs from './revdocs.mjs';
+import { NO_ES_DINERO, leerTablaDinero, rpcDinero, sembrarDinero, storageDinero } from './dinero.mjs';
 
 const PUERTO = Number(process.env.MOCK_PUERTO || 54399);
 const CLAVE = 'ClaveSegura123';
@@ -56,6 +57,7 @@ function reiniciar(perfil = 'base') {
   S.invitaciones.at(-1).empresa_id = E.A;
   sembrarProyectos(S);
   revdocs.sembrar(S, perfil);
+  sembrarDinero(S, E); // Módulo 4: contratos, cuotas, abonos, facturas (ver dinero.mjs)
 }
 reiniciar();
 
@@ -142,7 +144,7 @@ function leerTabla(tabla, q, params) {
   }
   if (tabla === 'invitaciones') return filtrar(S.invitaciones.filter((i) => esSuper || (admin && i.empresa_id === eid)), params).map(sinSecretos);
   if (tabla === 'preferencias_usuario') return filtrar(Object.values(S.preferencias).filter((p) => p.user_id === c.user_id), params);
-  return [];
+  return leerTablaDinero(S, tabla, c, params, filtrar) ?? [];
 }
 
 const FRENO = {}; // correo -> { fallos, hasta }
@@ -233,7 +235,7 @@ function rpc(nombre, a, q, res) {
       if (S.supers.has(a.p_user_id)) return falla('no_se_puede_bloquear_super_admin');
       p.bloqueado = a.p_bloqueado ?? true; return null;
     }
-    default: return falla('datos_invalidos');
+    default: { const r = rpcDinero(S, nombre, a, c, falla); return r === NO_ES_DINERO ? falla('datos_invalidos') : r; }
   }
 }
 
@@ -273,6 +275,10 @@ const servidor = http.createServer(async (req, res) => {
   if (ruta === '/__revdocs') return json(res, 200, { ...S.rd, storage: Object.keys(S.rd.storage), firmas: undefined });
   if (ruta.startsWith('/storage/v1/') && revdocs.almacenamiento(S, req, res, url, req._raw ?? Buffer.alloc(0), body, ctxActivo(q), json, respuestaErr)) return;
   if (ruta === '/__config') { Object.assign(S.config, body); return json(res, 200, S.config); }
+
+  if (ruta.startsWith('/storage/v1/') && storageDinero(S, req, res, url, ctxActivo(q), json)) return;
+  if (ruta === '/__permiso') { const { correo, ...perm } = body; const u = S.usuarios[correo]; const m = u && S.miembros.find((x) => x.user_id === u.id && !x.quitado_en); if (m) Object.assign(m, perm); return json(res, 200, { ok: !!m }); }
+  if (ruta === '/__dinero') return json(res, 200, { ...S.d, rechazos: S.rechazos ?? [] });
 
   // ---- Auth ----
   if (ruta === '/auth/v1/token') {

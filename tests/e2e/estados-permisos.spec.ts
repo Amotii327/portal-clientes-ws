@@ -136,7 +136,7 @@ test.describe('Pantallas de muestra', () => {
     await expect(page).toHaveURL(/\/entrar/);
     await entrarCliente(page, 'equipo-dinero@cliente.test');
     // Revisiones y Documentos ya son reales (sprint 3): ver tests/e2e/revisiones.spec.ts y documentos.spec.ts.
-    for (const ruta of ['/cliente/tickets', '/cliente/dinero']) {
+    for (const ruta of ['/cliente/tickets']) {
       await page.goto(ruta);
       await expect(page.getByText('Disponible en el próximo sprint')).toBeVisible();
     }
@@ -148,7 +148,7 @@ test.describe('Pantallas de muestra', () => {
 
   test('el super admin ve las suyas con el mismo aviso', async ({ page }) => {
     await entrarSuper(page);
-    for (const ruta of ['/admin/finanzas', '/admin/tickets', '/admin/mantenimiento']) {
+    for (const ruta of ['/admin/tickets', '/admin/mantenimiento']) {
       await page.goto(ruta);
       await expect(page.getByText('Disponible en el próximo sprint')).toBeVisible();
     }

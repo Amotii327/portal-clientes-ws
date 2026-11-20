@@ -1,9 +1,9 @@
 import { expect, type Page } from '@playwright/test';
 
-/** Los puertos se pueden cambiar con PW_PUERTO (el B es el siguiente) y PW_MOCK_PUERTO cuando otro proceso ya usa los de siempre. */
-export const APP = `http://127.0.0.1:${process.env.PW_PUERTO || process.env.PUERTO_APP || 3100}`;
-export const APP_B = `http://127.0.0.1:${(process.env.PW_PUERTO ? Number(process.env.PW_PUERTO) + 1 : process.env.PUERTO_APP_B) || 3101}`;
-export const MOCK = `http://127.0.0.1:${process.env.PW_MOCK_PUERTO || process.env.MOCK_PUERTO || 54399}`;
+/** Puertos: PW_PUERTO (la app A; la B es el siguiente) y PW_MOCK_PUERTO (el Supabase simulado). Los mismos que lee playwright.config.ts. */
+export const APP = `http://127.0.0.1:${Number(process.env.PW_PUERTO ?? 3100)}`;
+export const APP_B = `http://127.0.0.1:${Number(process.env.PW_PUERTO ?? 3100) + 1}`;
+export const MOCK = `http://127.0.0.1:${Number(process.env.PW_MOCK_PUERTO ?? 54399)}`;
 export const CLAVE = 'ClaveSegura123';
 export const CODIGO = '123456';
 
