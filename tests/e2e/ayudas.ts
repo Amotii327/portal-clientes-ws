@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 
-export const MOCK = 'http://127.0.0.1:54399';
+export const MOCK = `http://127.0.0.1:${process.env.PW_MOCK_PUERTO ?? 54399}`;
 export const CLAVE = 'ClaveSegura123';
 export const CODIGO = '123456';
 

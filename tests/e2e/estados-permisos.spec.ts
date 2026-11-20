@@ -48,7 +48,7 @@ test.describe('Estados de miContexto()', () => {
 
   test('una empresa pausada por el super admin corta el acceso en la siguiente pantalla', async ({ page, browser }) => {
     await entrarCliente(page, 'equipo@cliente.test');
-    const otra = await browser.newContext({ baseURL: 'http://127.0.0.1:3100' });
+    const otra = await browser.newContext({ baseURL: `http://127.0.0.1:${process.env.PW_PUERTO ?? 3100}` });
     const sup = await otra.newPage();
     await entrarSuper(sup);
     await sup.getByRole('row', { name: /Comercial Ejemplo/ }).getByRole('button', { name: 'Pausar' }).click();
@@ -135,7 +135,7 @@ test.describe('Pantallas de muestra', () => {
     await page.goto('/cliente/dinero');
     await expect(page).toHaveURL(/\/entrar/);
     await entrarCliente(page, 'equipo-dinero@cliente.test');
-    for (const ruta of ['/cliente/revisiones', '/cliente/tickets', '/cliente/documentos', '/cliente/dinero']) {
+    for (const ruta of ['/cliente/revisiones', '/cliente/tickets', '/cliente/documentos']) { // /cliente/dinero ya es real (sprint 4)
       await page.goto(ruta);
       await expect(page.getByText('Disponible en el próximo sprint')).toBeVisible();
     }
@@ -147,7 +147,7 @@ test.describe('Pantallas de muestra', () => {
 
   test('el super admin ve las suyas con el mismo aviso', async ({ page }) => {
     await entrarSuper(page);
-    for (const ruta of ['/admin/panel', '/admin/finanzas', '/admin/registro']) {
+    for (const ruta of ['/admin/panel', '/admin/registro']) { // /admin/finanzas ya es real (sprint 4)
       await page.goto(ruta);
       await expect(page.getByText('Disponible en el próximo sprint')).toBeVisible();
     }
@@ -164,7 +164,7 @@ test.describe('Tema (D-017)', () => {
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     // otra persona sigue en Clara
-    const otra = await browser.newContext({ baseURL: 'http://127.0.0.1:3100' });
+    const otra = await browser.newContext({ baseURL: `http://127.0.0.1:${process.env.PW_PUERTO ?? 3100}` });
     const p2 = await otra.newPage();
     await entrarCliente(p2, 'equipo@cliente.test');
     await expect(p2.locator('html')).toHaveAttribute('data-theme', 'light');

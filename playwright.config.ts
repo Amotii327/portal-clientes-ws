@@ -6,7 +6,10 @@ import { defineConfig } from '@playwright/test';
  * - Servidor B (3101): igual pero SIN esa variable: el enlace/token no puede llegar al navegador.
  * El navegador es el Chrome instalado en el equipo (no se descargan navegadores).
  */
-const MOCK = 'http://127.0.0.1:54399';
+// Los puertos se pueden cambiar (PW_PUERTO, PW_MOCK_PUERTO) para correr varias copias del proyecto a la vez sin pisarse.
+const P = Number(process.env.PW_PUERTO ?? 3100);
+const PM = Number(process.env.PW_MOCK_PUERTO ?? 54399);
+const MOCK = `http://127.0.0.1:${PM}`;
 const comun = {
   NEXT_OUTPUT: 'server',
   NEXT_PUBLIC_SUPABASE_URL: MOCK,
@@ -29,20 +32,20 @@ export default defineConfig({
     locale: 'es-CO',
   },
   projects: [
-    { name: 'escritorio', testIgnore: /capturas|sin-enlace/, use: { baseURL: 'http://127.0.0.1:3100', viewport: { width: 1440, height: 900 } } },
-    { name: 'sin-enlace', testMatch: /sin-enlace/, use: { baseURL: 'http://127.0.0.1:3101', viewport: { width: 1440, height: 900 } } },
-    { name: 'capturas-1440', testMatch: /capturas/, use: { baseURL: 'http://127.0.0.1:3100', viewport: { width: 1440, height: 900 } } },
-    { name: 'capturas-390', testMatch: /capturas/, use: { baseURL: 'http://127.0.0.1:3100', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
+    { name: 'escritorio', testIgnore: /capturas|sin-enlace/, use: { baseURL: `http://127.0.0.1:${P}`, viewport: { width: 1440, height: 900 } } },
+    { name: 'sin-enlace', testMatch: /sin-enlace/, use: { baseURL: `http://127.0.0.1:${P + 1}`, viewport: { width: 1440, height: 900 } } },
+    { name: 'capturas-1440', testMatch: /capturas/, use: { baseURL: `http://127.0.0.1:${P}`, viewport: { width: 1440, height: 900 } } },
+    { name: 'capturas-390', testMatch: /capturas/, use: { baseURL: `http://127.0.0.1:${P}`, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
   ],
   webServer: [
-    { command: 'node tests/mock-supabase/servidor.mjs', url: `${MOCK}/__estado`, reuseExistingServer: true, timeout: 20_000 },
+    { command: 'node tests/mock-supabase/servidor.mjs', url: `${MOCK}/__estado`, reuseExistingServer: true, timeout: 20_000, env: { MOCK_PUERTO: String(PM) } },
     {
-      command: 'npx next dev -p 3100', url: 'http://127.0.0.1:3100/entrar', reuseExistingServer: true, timeout: 180_000,
-      env: { ...comun, NEXT_PUBLIC_SITE_URL: 'http://127.0.0.1:3100', MOSTRAR_ENLACE_INVITACION_DEV: 'true', NEXT_DIST_DIR: '.next-servidor' },
+      command: `npx next dev -p ${P}`, url: `http://127.0.0.1:${P}/entrar`, reuseExistingServer: true, timeout: 180_000,
+      env: { ...comun, NEXT_PUBLIC_SITE_URL: `http://127.0.0.1:${P}`, MOSTRAR_ENLACE_INVITACION_DEV: 'true', NEXT_DIST_DIR: '.next-servidor' },
     },
     {
-      command: 'npx next dev -p 3101', url: 'http://127.0.0.1:3101/entrar', reuseExistingServer: true, timeout: 180_000,
-      env: { ...comun, NEXT_PUBLIC_SITE_URL: 'http://127.0.0.1:3101', NEXT_DIST_DIR: '.next-servidor-b' },
+      command: `npx next dev -p ${P + 1}`, url: `http://127.0.0.1:${P + 1}/entrar`, reuseExistingServer: true, timeout: 180_000,
+      env: { ...comun, NEXT_PUBLIC_SITE_URL: `http://127.0.0.1:${P + 1}`, NEXT_DIST_DIR: '.next-servidor-b' },
     },
   ],
 });

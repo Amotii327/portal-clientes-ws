@@ -41,7 +41,7 @@ function useNav(): Item[] {
       { to: '/admin/clientes', label: 'Clientes', icon: <Building2 className={ic} /> },
       { to: '/admin/panel', label: 'Panel general', icon: <LayoutDashboard className={ic} />, pronto: p },
       { to: '/admin/aprobaciones', label: 'Bandeja de aprobaciones', icon: <Inbox className={ic} />, badge: p ? 0 : porRevisar, pronto: p },
-      { to: '/admin/finanzas', label: 'Finanzas', icon: <Banknote className={ic} />, pronto: p },
+      { to: '/admin/finanzas', label: 'Finanzas', icon: <Banknote className={ic} /> },
       { to: '/admin/tickets', label: 'Tickets de todos', icon: <LifeBuoy className={ic} />, pronto: p },
       { to: '/admin/mantenimiento', label: 'Mantenimiento', icon: <Wrench className={ic} />, pronto: p },
       { to: '/admin/registro', label: 'Registro de actividad', icon: <Activity className={ic} />, pronto: p },
@@ -53,7 +53,7 @@ function useNav(): Item[] {
     { to: '/cliente/inicio', label: 'Inicio', icon: <Home className={ic} />, pronto: p },
     { to: '/cliente/revisiones', label: 'Revisiones', icon: <ClipboardCheck className={ic} />, badge: p ? 0 : pendientes, pronto: p },
   ];
-  if (s.can.verDinero) items.push({ to: '/cliente/dinero', label: 'Dinero', icon: <Wallet className={ic} />, pronto: p });
+  if (s.can.verDinero) items.push({ to: '/cliente/dinero', label: 'Dinero', icon: <Wallet className={ic} /> });
   items.push({ to: '/cliente/tickets', label: 'Tickets', icon: <LifeBuoy className={ic} />, pronto: p }, { to: '/cliente/documentos', label: 'Documentos', icon: <FolderOpen className={ic} />, pronto: p });
   if (s.can.esAdmin) items.push({ to: '/cliente/equipo', label: 'Mi equipo', icon: <Users className={ic} /> });
   if (p && (s.can.esAdmin || s.can.verDinero)) items.push({ to: '/cliente/facturacion', label: 'Datos de facturación', icon: <Receipt className={ic} /> });

@@ -3,6 +3,7 @@
 // Reglas de acceso resumidas de docs/matriz-permisos.md. Todos los datos son inventados. Puerto: 54399.
 import http from 'node:http';
 import crypto from 'node:crypto';
+import { NO_ES_DINERO, leerTablaDinero, rpcDinero, sembrarDinero, storageDinero } from './dinero.mjs';
 
 const PUERTO = Number(process.env.MOCK_PUERTO || 54399);
 const CLAVE = 'ClaveSegura123';
@@ -52,6 +53,7 @@ function reiniciar() {
   delete S.perfiles[S.usuarios['existente@cliente.test'].id];
   inv('tok-otro-555', 'otro@cliente.test');
   S.invitaciones.at(-1).empresa_id = E.A;
+  sembrarDinero(S, E); // Módulo 4: contratos, cuotas, abonos, facturas (ver dinero.mjs)
 }
 reiniciar();
 
@@ -123,7 +125,7 @@ function leerTabla(tabla, q, params) {
   }
   if (tabla === 'invitaciones') return filtrar(S.invitaciones.filter((i) => esSuper || (admin && i.empresa_id === eid)), params).map(sinSecretos);
   if (tabla === 'preferencias_usuario') return filtrar(Object.values(S.preferencias).filter((p) => p.user_id === c.user_id), params);
-  return [];
+  return leerTablaDinero(S, tabla, c, params, filtrar) ?? [];
 }
 
 function rpc(nombre, a, q, res) {
@@ -195,7 +197,7 @@ function rpc(nombre, a, q, res) {
       if (S.supers.has(a.p_user_id)) return falla('no_se_puede_bloquear_super_admin');
       p.bloqueado = a.p_bloqueado ?? true; return null;
     }
-    default: return falla('datos_invalidos');
+    default: { const r = rpcDinero(S, nombre, a, c, falla); return r === NO_ES_DINERO ? falla('datos_invalidos') : r; }
   }
 }
 
@@ -223,6 +225,10 @@ const servidor = http.createServer(async (req, res) => {
   if (ruta === '/__estado') return json(res, 200, { ultimoToken: S.ultimoToken, preferencias: S.preferencias, empresas: S.empresas, miembros: S.miembros, perfiles: S.perfiles, exigir2fa: S.config.exigir_2fa_admin_cliente, invitaciones: S.invitaciones.map(sinSecretos), bitacora: S.bitacora.length });
   if (ruta === '/__confirmar') { const u = S.usuarios[url.searchParams.get('correo')]; if (u) u.confirmado = true; return json(res, 200, { ok: !!u }); }
   if (ruta === '/__config') { Object.assign(S.config, body); return json(res, 200, S.config); }
+
+  if (ruta.startsWith('/storage/v1/') && storageDinero(S, req, res, url, ctxActivo(q), json)) return;
+  if (ruta === '/__permiso') { const { correo, ...perm } = body; const u = S.usuarios[correo]; const m = u && S.miembros.find((x) => x.user_id === u.id && !x.quitado_en); if (m) Object.assign(m, perm); return json(res, 200, { ok: !!m }); }
+  if (ruta === '/__dinero') return json(res, 200, { ...S.d, rechazos: S.rechazos ?? [] });
 
   // ---- Auth ----
   if (ruta === '/auth/v1/token') {
