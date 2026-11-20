@@ -120,7 +120,7 @@ select is((select estado from public.tickets where id = :'t_reciente'), 'resuelt
 select is((select estado from public.tickets where id = :'t_pausada'), 'resuelto', 'las empresas pausadas se saltan');
 select is(private.cerrar_tickets_vencidos(), 0, 'correrlo otra vez no repite trabajo');
 select is((select count(*)::int from public.registro_actividad where accion = 'ticket_cerrado_automatico' and entidad_id = :'t_viejo'::text and actor_tipo = 'sistema'), 1, 'el cierre automatico queda en el registro como "sistema"');
-select is((select count(*)::int from public.outbox_correos where tipo = 'ticket_estado' and datos ->> 'estado' = 'cerrado' and destinatario_user_id = tests.id('equipo_a')), 1, 'y se avisa por correo (cola) a quien creo el ticket');
+select is((select count(*)::int from public.avisos_salientes where tipo = 'ticket_estado' and datos ->> 'estado' = 'cerrado' and destinatario_user_id = tests.id('equipo_a')), 1, 'y se avisa por correo (cola) a quien creo el ticket');
 
 -- ---------- Notas internas y texto retirado ----------
 select tests.como(tests.id('equipo_a'));

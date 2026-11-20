@@ -22,9 +22,9 @@ select (public.crear_ticket('error', 'mi clave del servidor es Abc12345', 'Detal
 select (public.crear_ticket('solicitud_cambio', 'Cambio con dato sensible 99887766', 'Detalle', 'normal') ->> 'ticket_id') as t_cambio \gset
 select public.responder_ticket(:'t1', 'Mi clave es Zz998877') ;
 select tests.admin();
-select is((select count(*)::int from public.outbox_correos where datos::text ilike '%Abc12345%' or datos::text ilike '%99887766%' or datos::text ilike '%Zz998877%'), 0, 'I-1: la cola de correos no guarda titulo ni texto del cliente');
-select cmp_ok((select count(*)::int from public.outbox_correos where datos ? 'ticket_id'), '>=', 2, 'I-1: la cola si guarda identificadores del ticket');
-select is((select count(*)::int from public.outbox_correos where datos ? 'titulo'), 0, 'I-1: ningun aviso lleva la clave "titulo"');
+select is((select count(*)::int from public.avisos_salientes where datos::text ilike '%Abc12345%' or datos::text ilike '%99887766%' or datos::text ilike '%Zz998877%'), 0, 'I-1: la cola de correos no guarda titulo ni texto del cliente');
+select cmp_ok((select count(*)::int from public.avisos_salientes where datos ? 'ticket_id'), '>=', 2, 'I-1: la cola si guarda identificadores del ticket');
+select is((select count(*)::int from public.avisos_salientes where datos ? 'titulo'), 0, 'I-1: ningun aviso lleva la clave "titulo"');
 
 -- I-3: horas en todos los tickets; las de cambios no descuentan
 select tests.como(tests.id('sa'), 'aal2');

@@ -32,7 +32,7 @@ select is((select subido_por from public.comprobantes_pago), tests.id('admin_a')
 select throws_ok($$select public.subir_comprobante(tests.pago('Segundo pago'), tests.ruta('empresa_a', 'comprobantes'), 'otro.pdf', 'application/pdf', 100, 1000, private.hoy())$$, 'P0001', 'comprobante_en_revision', 'un segundo comprobante mientras hay uno en revision: rechazado');
 select tests.admin();
 select is((select count(*)::int from public.avisos_salientes where tipo = 'comprobante_recibido' and destino = 'super_admin' and empresa_id = tests.id('empresa_a')), 1, 'el super admin recibe un aviso en la cola');
-select is((select datos ->> 'concepto' from public.avisos_salientes where tipo = 'comprobante_recibido'), 'Segundo pago', 'el aviso dice de que cuota es');
+select is((select datos ->> 'pago_id' from public.avisos_salientes where tipo = 'comprobante_recibido'), tests.pago('Segundo pago')::text, 'el aviso dice de que cuota es (por id, sin textos)');
 select is((select count(*)::int from public.registro_actividad where accion = 'comprobante_subido' and actor_id = tests.id('admin_a')), 1, 'el registro anota quien subio el comprobante');
 select is((select count(*)::int from information_schema.columns where table_name = 'comprobantes_pago' and column_name like 'revisado_por%'), 0, 'el comprobante no expone el nombre de quien lo reviso');
 

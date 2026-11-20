@@ -148,9 +148,9 @@ select ok(tests.error_es(format($$select public.decidir_ticket(%L, 'cobrar', nul
 
 -- ---------- Avisos (cola de correos) ----------
 select tests.admin();
-select cmp_ok((select count(*)::int from public.outbox_correos where tipo = 'ticket_cobro_pendiente' and destinatario_user_id = tests.id('admin_a')), '>=', 1, 'cobrar avisa al admin del cliente');
-select cmp_ok((select count(*)::int from public.outbox_correos where tipo = 'ticket_requiere_decision' and destinatario_user_id = tests.id('sa')), '>=', 1, 'un ticket fuera de plan avisa al dueno que debe decidir');
-select cmp_ok((select count(*)::int from public.outbox_correos where tipo = 'ticket_cobro_aceptado' and destinatario_user_id = tests.id('sa')), '>=', 1, 'cuando el cliente acepta, se avisa al dueno');
+select cmp_ok((select count(*)::int from public.avisos_salientes where tipo = 'ticket_cobro_pendiente' and destinatario_user_id = tests.id('admin_a')), '>=', 1, 'cobrar avisa al admin del cliente');
+select cmp_ok((select count(*)::int from public.avisos_salientes where tipo = 'ticket_requiere_decision' and destinatario_user_id = tests.id('sa')), '>=', 1, 'un ticket fuera de plan avisa al dueno que debe decidir');
+select cmp_ok((select count(*)::int from public.avisos_salientes where tipo = 'ticket_cobro_aceptado' and destinatario_user_id = tests.id('sa')), '>=', 1, 'cuando el cliente acepta, se avisa al dueno');
 
 select * from finish();
 rollback;

@@ -43,7 +43,8 @@ select ok(not has_table_privilege('authenticated', 'public.abonos', 'insert') an
           and not has_table_privilege('authenticated', 'public.abonos', 'delete'), 'authenticated no escribe abonos directo');
 select ok(not has_table_privilege('authenticated', 'public.comprobantes_pago', 'insert') and not has_table_privilege('authenticated', 'public.comprobantes_pago', 'update'),
   'authenticated no escribe comprobantes directo');
-select ok(not has_table_privilege('service_role', 'public.avisos_salientes', 'select'), 'service_role no tiene acceso a la cola (se concede con el modulo de notificaciones)');
+select ok(has_table_privilege('service_role', 'public.avisos_salientes', 'select') and not has_table_privilege('service_role', 'public.avisos_salientes', 'insert')
+          and not has_table_privilege('service_role', 'public.avisos_salientes', 'delete'), 'service_role LEE la cola (la vacia el despachador), pero no inserta ni borra; ver prueba 50');
 select ok(not has_table_privilege('anon', 'public.contratos', 'select') and not has_table_privilege('anon', 'public.v_ingresos_por_mes', 'select'),
   'anon no lee contratos ni ingresos');
 select is_empty($$select c.relname::text from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'v'

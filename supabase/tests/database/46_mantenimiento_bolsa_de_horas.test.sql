@@ -71,10 +71,10 @@ select is((select porcentaje from public.bolsa_avisos where bolsa_id = :'bolsa_a
 select is((select count(*)::int from public.bolsa_avisos where bolsa_id = :'bolsa_a' and tipo = '100_por_ciento'), 0, 'todavia no hay aviso de 100 %');
 select isnt((select aviso_80_en from public.bolsa_mensual where id = :'bolsa_a'), null::timestamptz, 'la bolsa recuerda que ya aviso');
 select tests.admin();
-select is((select count(*)::int from public.outbox_correos where tipo = 'mantenimiento_aviso_80_por_ciento' and destinatario_user_id = tests.id('sa')), 1, 'el 80 % avisa al super admin (cola de correos)');
-select is((select count(*)::int from public.outbox_correos where tipo = 'mantenimiento_aviso_80_por_ciento' and destinatario_user_id = tests.id('admin_a')), 1, 'y al admin del cliente');
-select is((select count(*)::int from public.outbox_correos where tipo = 'mantenimiento_aviso_80_por_ciento' and destinatario_user_id = tests.id('equipo_a')), 0, 'pero no al equipo del cliente');
-select is((select count(*)::int from public.outbox_correos where tipo like 'mantenimiento_aviso%' and empresa_id = tests.id('empresa_b')), 0, 'ni a otra empresa');
+select is((select count(*)::int from public.avisos_salientes where tipo = 'mantenimiento_aviso_80_por_ciento' and destinatario_user_id = tests.id('sa')), 1, 'el 80 % avisa al super admin (cola de correos)');
+select is((select count(*)::int from public.avisos_salientes where tipo = 'mantenimiento_aviso_80_por_ciento' and destinatario_user_id = tests.id('admin_a')), 1, 'y al admin del cliente');
+select is((select count(*)::int from public.avisos_salientes where tipo = 'mantenimiento_aviso_80_por_ciento' and destinatario_user_id = tests.id('equipo_a')), 0, 'pero no al equipo del cliente');
+select is((select count(*)::int from public.avisos_salientes where tipo like 'mantenimiento_aviso%' and empresa_id = tests.id('empresa_b')), 0, 'ni a otra empresa');
 select tests.como(tests.id('sa'), 'aal2');
 
 -- ---------- Pasar el 100 %: horas extra ----------
@@ -87,7 +87,7 @@ select is((select horas_usadas || '/' || horas_extra from public.bolsa_mensual w
 select is((select count(*)::int from public.bolsa_avisos where bolsa_id = :'bolsa_a'), 2, 'el historial de avisos tiene el 80 % y el 100 %');
 select is((select porcentaje from public.bolsa_avisos where bolsa_id = :'bolsa_a' and tipo = '100_por_ciento'), 100.00::numeric, 'aviso del 100 %');
 select tests.admin();
-select is((select count(*)::int from public.outbox_correos where tipo = 'horas_extra_pendientes' and destinatario_user_id = tests.id('admin_a')), 1, 'las horas extra avisan al admin del cliente para que decida');
+select is((select count(*)::int from public.avisos_salientes where tipo = 'horas_extra_pendientes' and destinatario_user_id = tests.id('admin_a')), 1, 'las horas extra avisan al admin del cliente para que decida');
 select tests.como(tests.id('admin_a'));
 select is(tests.contar('select 1 from public.horas_registradas where estado = ''extra_pendiente_cliente'''), 1::bigint, 'el admin del cliente ve las horas extra pendientes');
 select is(tests.contar('select 1 from public.bolsa_avisos'), 2::bigint, 'y el historial de avisos de su bolsa');

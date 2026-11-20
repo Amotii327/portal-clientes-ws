@@ -6,16 +6,17 @@ select plan(12);
 select is((select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
             where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity
               and c.relname in ('tickets','ticket_mensajes','ticket_adjuntos','garantias','planes_base_mantenimiento','planes_mantenimiento',
-                                'planes_mantenimiento_historial','bolsa_mensual','bolsa_avisos','horas_registradas','horas_notas_internas','outbox_correos')),
+                                'planes_mantenimiento_historial','bolsa_mensual','bolsa_avisos','horas_registradas','horas_notas_internas','avisos_salientes')),
           0, 'las 12 tablas nuevas tienen RLS activa');
 select is((select count(*)::int from information_schema.role_table_grants
             where table_schema = 'public' and grantee in ('anon', 'service_role')
+              and not (grantee = 'service_role' and table_name = 'avisos_salientes') -- la cola unica: ver prueba 50
               and table_name in ('tickets','ticket_mensajes','ticket_adjuntos','garantias','planes_base_mantenimiento','planes_mantenimiento',
-                                 'planes_mantenimiento_historial','bolsa_mensual','bolsa_avisos','horas_registradas','horas_notas_internas','outbox_correos')),
+                                 'planes_mantenimiento_historial','bolsa_mensual','bolsa_avisos','horas_registradas','horas_notas_internas','avisos_salientes')),
           0, 'anon y service_role no tienen permisos sobre las tablas nuevas');
 select is((select count(*)::int from pg_trigger t join pg_class c on c.oid = t.tgrelid
             where t.tgname = 'ver_como_solo_lectura' and c.relname in ('tickets','ticket_mensajes','ticket_adjuntos','garantias','planes_base_mantenimiento',
-              'planes_mantenimiento','planes_mantenimiento_historial','bolsa_mensual','bolsa_avisos','horas_registradas','horas_notas_internas','outbox_correos')),
+              'planes_mantenimiento','planes_mantenimiento_historial','bolsa_mensual','bolsa_avisos','horas_registradas','horas_notas_internas','avisos_salientes')),
           12, 'las 12 tablas tienen la cerradura de "ver como"');
 select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'public' and p.prosecdef and p.proname in ('crear_ticket','responder_ticket','clasificar_ticket','cambiar_estado_ticket','decidir_ticket',

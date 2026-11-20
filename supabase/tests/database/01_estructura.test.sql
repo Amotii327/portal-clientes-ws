@@ -11,7 +11,7 @@ select is_empty(
 
 -- 2. Las 10 tablas del sprint 1 existen.
 select is((select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
-            where n.nspname = 'public' and c.relkind = 'r'), 47, 'hay 47 tablas en public (sprints 1 a 5, todos los modulos)');
+            where n.nspname = 'public' and c.relkind = 'r'), 46, 'hay 46 tablas en public (sprints 1 a 5, todos los modulos, con la cola de avisos unica)');
 
 -- 3. Toda tabla con RLS tiene politicas, salvo super_admins (cerrada a proposito).
 select is_empty(
@@ -36,12 +36,14 @@ select is_empty(
 -- 6. anon y service_role no tienen permisos sobre ninguna tabla/columna de public.
 select is_empty(
   $$select table_name::text from information_schema.role_table_grants
-     where table_schema = 'public' and grantee in ('anon', 'service_role', 'PUBLIC')$$,
-  'anon, service_role y PUBLIC sin permisos de tabla');
+     where table_schema = 'public' and grantee in ('anon', 'service_role', 'PUBLIC')
+       and not (table_name = 'avisos_salientes' and grantee = 'service_role' and privilege_type = 'SELECT')$$,
+  'anon, service_role y PUBLIC sin permisos de tabla (unica excepcion: service_role LEE la cola avisos_salientes)');
 select is_empty(
   $$select table_name::text from information_schema.role_column_grants
-     where table_schema = 'public' and grantee in ('anon', 'service_role', 'PUBLIC')$$,
-  'anon, service_role y PUBLIC sin permisos de columna');
+     where table_schema = 'public' and grantee in ('anon', 'service_role', 'PUBLIC')
+       and not (table_name = 'avisos_salientes' and grantee = 'service_role' and privilege_type in ('SELECT', 'UPDATE'))$$,
+  'anon, service_role y PUBLIC sin permisos de columna (unica excepcion: service_role en la cola avisos_salientes; ver prueba 50)');
 
 -- 7. authenticated: nunca DELETE/TRUNCATE; INSERT y UPDATE solo por columna, nunca de tabla completa.
 select is_empty(

@@ -53,7 +53,7 @@ select id as bolsa_a from public.bolsa_mensual where empresa_id = tests.id('empr
 select id as bolsa_b from public.bolsa_mensual where empresa_id = tests.id('empresa_b') \gset
 insert into public.horas_notas_internas (hora_id, empresa_id, nota) values (:'hora_a_pend', tests.id('empresa_a'), 'Nota interna de horas');
 -- Un correo en la cola
-select count(*) > 0 as hay_outbox from public.outbox_correos \gset
+select count(*) > 0 as hay_outbox from public.avisos_salientes \gset
 
 -- ---------- Admin de A ----------
 select tests.como(tests.id('admin_a'));
@@ -69,7 +69,7 @@ select is(tests.contar('select 1 from public.planes_base_mantenimiento'), 0::big
 select is(tests.contar('select 1 from public.bolsa_mensual'), 1::bigint, 'admin A: ve la bolsa de A, no la de B');
 select is(tests.contar('select 1 from public.horas_registradas'), 2::bigint, 'admin A: ve solo horas ya revisadas (aprobada y extra pendiente), no pendientes ni rechazadas');
 select is(tests.contar('select 1 from public.horas_notas_internas'), 0::bigint, 'admin A: no ve la nota interna de las horas');
-select is(tests.contar('select 1 from public.outbox_correos'), 0::bigint, 'admin A: no ve la cola de correos');
+select is(tests.contar('select 1 from public.avisos_salientes'), 0::bigint, 'admin A: no ve la cola de correos');
 select is(tests.contar('select 1 from public.tickets_semaforo'), 3::bigint, 'admin A: la vista del semaforo respeta la cerradura (3)');
 select is(tests.contar('select 1 from public.bolsa_mensual_resumen'), 1::bigint, 'admin A: la vista de la bolsa respeta la cerradura (1)');
 select ok(public.mi_mantenimiento_activo(), 'admin A: ve el modulo de mantenimiento (esta encendido)');
@@ -84,7 +84,7 @@ select throws_ok($$insert into public.ticket_adjuntos (empresa_id, ticket_id, no
 select throws_ok($$update public.planes_mantenimiento set cuota_mensual = 1$$, '42501', null, 'admin A: no edita su plan de mantenimiento');
 select throws_ok($$update public.bolsa_mensual set horas_usadas = 0$$, '42501', null, 'admin A: no edita la bolsa');
 select throws_ok($$update public.horas_registradas set estado = 'aprobada'$$, '42501', null, 'admin A: no edita horas');
-select throws_ok($$insert into public.outbox_correos (tipo, destinatario_correo) values ('x', 'a@b.co')$$, '42501', null, 'admin A: no escribe en la cola de correos');
+select throws_ok($$insert into public.avisos_salientes (modulo, tipo, destino, clave_unica) values ('tickets', 'x_tipo', 'super_admin', 'clave-x-1')$$, '42501', null, 'admin A: no escribe en la cola de correos');
 select throws_ok($$insert into public.garantias (empresa_id, inicia_en, vence_en) values (gen_random_uuid(), current_date, current_date + 30)$$, '42501', 'new row violates row-level security policy for table "garantias"', 'admin A: no crea garantias (solo el super admin)');
 select is(tests.afectadas($$update public.planes_base_mantenimiento set nota = 'x'$$), 0::bigint, 'admin A: no edita los planes base');
 
@@ -173,7 +173,7 @@ select throws_ok($$select public.activar_mantenimiento(gen_random_uuid(), 'basic
 select tests.como(tests.id('sa'), 'aal1');
 select is(tests.contar('select 1 from public.tickets'), 0::bigint, 'super admin sin 2FA: no ve tickets');
 select is(tests.contar('select 1 from public.planes_mantenimiento'), 0::bigint, 'super admin sin 2FA: no ve planes');
-select is(tests.contar('select 1 from public.outbox_correos'), 0::bigint, 'super admin sin 2FA: no ve la cola de correos');
+select is(tests.contar('select 1 from public.avisos_salientes'), 0::bigint, 'super admin sin 2FA: no ve la cola de correos');
 select ok(tests.error_es($$select public.activar_mantenimiento(tests.id('empresa_a'), 'basico', '{}')$$, 'no_autorizado'), 'super admin sin 2FA: no activa mantenimiento');
 select ok(tests.error_es(format($$select public.clasificar_ticket(%L, 'alta')$$, :'ta_eq'), 'no_autorizado'), 'super admin sin 2FA: no clasifica');
 select throws_ok($$insert into public.garantias (empresa_id, inicia_en, vence_en) values (tests.id('empresa_a'), current_date, current_date + 30)$$, '42501', null, 'super admin sin 2FA: no crea garantias');
@@ -184,7 +184,7 @@ select is(tests.contar('select 1 from public.tickets'), 5::bigint, 'super admin 
 select is(tests.contar('select 1 from public.ticket_mensajes'), 4::bigint, 'super admin: ve todos los mensajes, tambien las notas internas');
 select is(tests.contar('select 1 from public.horas_registradas'), 8::bigint, 'super admin: ve todas las horas (4 por empresa)');
 select is(tests.contar('select 1 from public.horas_notas_internas'), 1::bigint, 'super admin: ve las notas internas de horas');
-select cmp_ok(tests.contar('select 1 from public.outbox_correos'), '>=', 0::bigint, 'super admin: lee la cola de correos');
+select cmp_ok(tests.contar('select 1 from public.avisos_salientes'), '>=', 0::bigint, 'super admin: lee la cola de correos');
 select lives_ok($$insert into public.garantias (empresa_id, inicia_en, vence_en) values (tests.id('empresa_c'), current_date, current_date + 30)$$, 'super admin: crea garantias');
 select lives_ok($$update public.planes_base_mantenimiento set nota = 'Ajustada por el dueno' where plan = 'basico'$$, 'super admin: edita los planes base');
 select throws_ok($$update public.garantias set empresa_id = tests.id('empresa_b') where empresa_id = tests.id('empresa_c')$$, '42501', null, 'super admin: no puede mudar una garantia a otra empresa (columna sin permiso)');

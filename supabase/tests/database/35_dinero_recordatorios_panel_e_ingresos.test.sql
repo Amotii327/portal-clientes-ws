@@ -1,6 +1,6 @@
 -- Recordatorios de pago (cola de avisos), panel del super admin, inicio del cliente e ingresos (solo super admin).
 begin;
-select plan(55);
+select plan(56);
 \ir ../local/fixtures.sql
 \ir ../local/ayudas_proyectos.sql
 \ir ../local/ayudas_dinero.sql
@@ -42,14 +42,15 @@ select is((public.generar_recordatorios_pago() ->> 'avisos_nuevos')::int, 5, 'la
 reset role;
 select is((select count(*)::int from public.avisos_salientes where tipo = 'pago_vencido' and destino = 'cliente_dinero'), 1, 'un aviso de vencido para el cliente (Anticipo)');
 select is((select count(*)::int from public.avisos_salientes where tipo = 'pago_vencido' and destino = 'super_admin'), 1, 'y uno para el super admin');
-select is((select datos ->> 'concepto' from public.avisos_salientes where tipo = 'pago_vencido' and destino = 'super_admin'), 'Anticipo', 'el aviso del super admin dice cual cuota');
-select is((select datos ->> 'empresa_nombre' from public.avisos_salientes where tipo = 'pago_vencido' and destino = 'super_admin'), 'Empresa A', '... y de que empresa');
+select is((select referencia_id from public.avisos_salientes where tipo = 'pago_vencido' and destino = 'super_admin'), tests.pago('Anticipo'), 'el aviso del super admin dice cual cuota (por referencia)');
+select is((select empresa_id from public.avisos_salientes where tipo = 'pago_vencido' and destino = 'super_admin'), tests.id('empresa_a'), '... y de que empresa (por id)');
+select is((select count(*)::int from public.avisos_salientes where datos ?| array['concepto', 'empresa_nombre']), 0, 'la cola no lleva textos (concepto ni nombre de empresa)');
 select is((select count(*)::int from public.avisos_salientes where tipo = 'pago_por_vencer'), 2, 'dos avisos de "por vencer" (vence en 2 y vence en 3 dias)');
 select is((select count(*)::int from public.avisos_salientes where tipo = 'pago_vence_hoy'), 1, 'un aviso de "vence hoy"');
-select is((select datos ->> 'concepto' from public.avisos_salientes where tipo = 'pago_vence_hoy'), 'Vence hoy', 'es el de la cuota que vence hoy');
-select is((select count(*)::int from public.avisos_salientes where datos ->> 'concepto' in ('Vence en 4', 'Saldo final', 'Anticipo B')), 0, 'las cuotas lejanas (4 dias o mas) no avisan');
-select is((select count(*)::int from public.avisos_salientes where datos ->> 'concepto' = 'Ya pagada'), 0, 'una cuota pagada no avisa');
-select is((select count(*)::int from public.avisos_salientes where tipo like 'pago\_%' and datos ->> 'concepto' = 'En revision'), 0, 'una cuota con comprobante en revision no avisa al cliente');
+select is((select referencia_id from public.avisos_salientes where tipo = 'pago_vence_hoy'), tests.pago('Vence hoy'), 'es el de la cuota que vence hoy');
+select is((select count(*)::int from public.avisos_salientes where referencia_id in (tests.pago('Vence en 4'), tests.pago('Saldo final'), tests.pago('Anticipo B'))), 0, 'las cuotas lejanas (4 dias o mas) no avisan');
+select is((select count(*)::int from public.avisos_salientes where referencia_id = tests.pago('Ya pagada')), 0, 'una cuota pagada no avisa');
+select is((select count(*)::int from public.avisos_salientes where tipo like 'pago\_%' and referencia_id = tests.pago('En revision')), 0, 'una cuota con comprobante en revision no avisa al cliente');
 select is((select count(*)::int from public.avisos_salientes where empresa_id = tests.id('empresa_c')), 0, 'una empresa pausada no recibe avisos');
 select is((select count(*)::int from public.avisos_salientes where tipo like 'pago\_%' and estado = 'pendiente' and modulo = 'dinero'), 5, 'todos quedan pendientes, del modulo dinero');
 select is((select count(*)::int from public.avisos_salientes where tipo like 'pago\_%' and empresa_id = tests.id('empresa_b')), 0, 'la empresa B (cuota a 10 dias) no tiene avisos y nada de A le cae');
@@ -86,7 +87,7 @@ select throws_ok($$update public.avisos_salientes set clave_unica = 'otra-clave-
 select tests.como(tests.id('sa'), 'aal2');
 select is((public.panel_super_admin() -> 'totales' ->> 'pagos_vencidos')::int, 1, 'panel: 1 pago vencido (el Anticipo de A; la cuota en revision y la de la empresa pausada no cuentan)');
 select is((public.panel_super_admin() -> 'totales' ->> 'comprobantes_en_revision')::int, 1, 'panel: 1 comprobante en revision');
-select is((public.panel_super_admin() -> 'totales') -> 'tickets_abiertos', 'null'::jsonb, 'panel: tickets sigue en null (sprint 5)');
+select is((public.panel_super_admin() -> 'totales' ->> 'tickets_abiertos')::int, 0, 'panel: tickets abiertos ya no es nulo (integracion): 0 sin tickets');
 select is((select x ->> 'concepto' from jsonb_array_elements(public.panel_super_admin() -> 'atencion') x where x ->> 'tipo' = 'pago_vencido'), 'Anticipo', 'panel: "atencion" trae el pago vencido');
 select is((select (x ->> 'dias_de_atraso')::int from jsonb_array_elements(public.panel_super_admin() -> 'atencion') x where x ->> 'tipo' = 'pago_vencido'), 10, 'panel: con 10 dias de atraso');
 select is((select x ->> 'prioridad' from jsonb_array_elements(public.panel_super_admin() -> 'atencion') x where x ->> 'tipo' = 'pago_vencido'), '1', 'panel: el pago vencido es prioridad 1');
