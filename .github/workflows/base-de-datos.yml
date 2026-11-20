@@ -26,7 +26,7 @@ jobs:
         with:
           version: latest
       - name: Conectar con el proyecto
-        run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
       - name: Prueba en seco
         if: github.ref != 'refs/heads/main'
         run: supabase db push --dry-run --password "$SUPABASE_DB_PASSWORD"
