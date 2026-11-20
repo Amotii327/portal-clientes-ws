@@ -85,6 +85,7 @@ Todas corren con la sesión del usuario, validan lo que entra y dejan rastro en 
 | `cambios_plan` (cambios a un plan aprobado, con motivo) | Todos | Los de su empresa con el plan aprobado | Igual | No |
 | `historial_proyecto` (apto para el cliente: sin IP, sin autor) | Todo, con `visible_cliente` | Solo `visible_cliente = true` de su empresa | Igual | No |
 | `sesiones_ver_como` | Solo el super admin real (con 2FA) | **No** | **No** | No |
+| `consumo_equipo_proyecto`, `consumo_equipo_sprint` (interno, solicitud de cambio 4) | Todos, solo con 2FA y sin "ver como" | **Nunca** (una sola política, solo super admin) | **Nunca** | No |
 | Vista `v_proyectos_resumen` (`security_invoker`) | Todos los proyectos | Sus proyectos | Sus proyectos | No |
 
 - `retrasos`, `cambios_plan` e `historial_proyecto` **solo se agregan** (ni el superusuario edita ni borra).
@@ -107,6 +108,7 @@ Escritura: **solo super admin con 2FA y sin sesión "ver como" abierta**. Para c
 | `agregar_sprint`, `editar_sprint`, `quitar_sprint`, `reordenar_sprints` | Con el plan aprobado, cambiar fechas, contenido, orden o quitar exige `motivo`, y queda en `cambios_plan` (lo ve el cliente). Un sprint iniciado no se quita ni se mueve. `editar_sprint(..., correr_siguientes => true)` corre los siguientes los mismos días |
 | `aprobar_plan_sprints(proyecto_id)` | Publica el plan al cliente (hito 6). **No es la aprobación del cliente**: el super admin nunca aprueba en nombre del cliente |
 | `iniciar_ver_como(empresa_id, rol?, permisos...)` / `terminar_ver_como()` | Ver abajo |
+| `fijar_consumo_proyecto`, `anotar_consumo_sprint`, `consumo_equipo` | Solo super admin con 2FA (también la lectura). Al llegar el consumo real al 80 % del tope queda `consumo_equipo_aviso_80` en el registro |
 | `anotar_rechazo(accion, codigo)` | Cualquier usuario con acceso anota que una acción suya fue rechazada (patrón estricto, tope de 20 por minuto, siempre a su nombre) |
 
 Lectura (respetan RLS, no usan permisos especiales): `panel_super_admin()` (solo super admin), `inicio_cliente()` (solo quien actúa como miembro de una empresa, incluido "ver como"), `linea_de_tiempo(proyecto_id)` (cada quien recibe solo lo que RLS le deja ver; el plan y los avisos de cruce solo llegan al cliente si el plan está aprobado, y los avisos solo al super admin).

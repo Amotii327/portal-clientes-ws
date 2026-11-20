@@ -156,6 +156,16 @@ export interface Database {
         };
         Insert: SinEscritura; Update: SinEscritura; Relationships: [];
       };
+      /** INTERNA: solo el super admin (2FA) la lee. El cliente y su equipo nunca reciben filas. */
+      consumo_equipo_proyecto: {
+        Row: { proyecto_id: string; empresa_id: string; estimado_inicial_pct: number | null; tope_pct: number | null; aviso_80_en: string | null; actualizado_en: string };
+        Insert: SinEscritura; Update: SinEscritura; Relationships: [];
+      };
+      /** INTERNA, igual que la anterior. */
+      consumo_equipo_sprint: {
+        Row: { sprint_id: string; empresa_id: string; proyecto_id: string; estimado_pct: number | null; real_pct: number | null; actualizado_en: string };
+        Insert: SinEscritura; Update: SinEscritura; Relationships: [];
+      };
       // super_admins: sin acceso desde la API, a propósito.
     };
     Views: {
@@ -236,6 +246,9 @@ export interface Database {
       panel_super_admin: { Args: Record<PropertyKey, never>; Returns: PanelSuperAdmin };
       inicio_cliente: { Args: Record<PropertyKey, never>; Returns: InicioCliente };
       linea_de_tiempo: { Args: { p_proyecto_id: string }; Returns: LineaDeTiempo };
+      fijar_consumo_proyecto: { Args: { p_proyecto_id: string; p_estimado_inicial_pct?: number | null; p_tope_pct?: number | null }; Returns: ConsumoEquipo };
+      anotar_consumo_sprint: { Args: { p_sprint_id: string; p_estimado_pct?: number | null; p_real_pct?: number | null }; Returns: ConsumoEquipo };
+      consumo_equipo: { Args: { p_proyecto_id: string }; Returns: ConsumoEquipo };
       anotar_rechazo: { Args: { p_accion: string; p_codigo: string }; Returns: undefined };
     };
     Enums: Record<string, never>;
@@ -340,4 +353,15 @@ export interface LineaDeTiempo {
     /** Solo para el super admin; el cliente recibe []. */
     avisos: AvisoPlan[];
   };
+}
+
+/** "Consumo del equipo" de un proyecto (solo super admin). Todos los valores son % de una semana. */
+export interface ConsumoEquipo {
+  estimado_inicial_pct: number | null; tope_pct: number | null;
+  estimado_sprints_pct: number; real_total_pct: number;
+  /** real_total / tope, en %; null si no hay tope. */
+  porcentaje_del_tope: number | null;
+  /** Cuándo se llegó al 80 % del tope (null si no). */
+  aviso_80_en: string | null;
+  sprints: { sprint_id: string; numero: number; nombre: string; estimado_pct: number | null; real_pct: number | null }[];
 }

@@ -128,7 +128,16 @@ Una función que falla deshace todo, también su rastro. Para dejarlo, cuando un
 9. **"Correr los siguientes"**: se corren los mismos días que se movió el **fin** del sprint editado (si el fin no cambia, lo que se movió el inicio), con fechas de inicio, fin y demo.
 10. **Un cliente de empresa pausada** no ve nada (igual que en el sprint 1).
 
-## 9. Lo que falta o no se probó
+## 9. Consumo del equipo (solicitud de cambio 4, interno)
+
+Tarjeta "Consumo del equipo" en el detalle de proyecto del super admin. **Nunca** en la zona del cliente ni en "ver como" (no devuelve filas; las funciones responden `no_autorizado`). Todo en % de una semana. En pantalla solo el nombre "Consumo del equipo".
+- Leer: `consumoEquipo(c, proyectoId)` → `{ estimado_inicial_pct, tope_pct, estimado_sprints_pct, real_total_pct, porcentaje_del_tope, aviso_80_en, sprints[{ sprint_id, numero, nombre, estimado_pct, real_pct }] }`.
+- Escribir: `fijarConsumoProyecto(c, { p_proyecto_id, p_estimado_inicial_pct?, p_tope_pct? })` y `anotarConsumoSprint(c, { p_sprint_id, p_estimado_pct?, p_real_pct? })`. Lo nulo no cambia; ambas devuelven el mismo objeto de lectura. Rango 0 a 10000, si no `datos_invalidos`.
+- Aviso: cuando la suma del real de los sprints llega al 80 % del tope, `aviso_80_en` se llena una vez y queda `consumo_equipo_aviso_80` en el registro (solo super admin). Si se sube el tope y baja del 80 %, se rearma. Muestre una alerta cuando `aviso_80_en` no sea null. El envío por correo del aviso llega con los avisos del sprint 6.
+- Tablas: `consumo_equipo_proyecto` y `consumo_equipo_sprint` (lectura directa solo para el super admin; escritura solo por funciones). Si se quita un sprint, su consumo se va con él (el aviso se reevalúa en la siguiente anotación).
+- Nada de esto aparece en `historial_proyecto`. Prueba: `19_consumo_equipo.test.sql`.
+
+## 10. Lo que falta o no se probó
 
 - Medición de rendimiento con volumen (M-8): las políticas ya usan subconsultas que se evalúan una vez por consulta y `miembro_activo` se lee una sola vez por llamada, pero no se midió con miles de filas. Revisar al llegar al sprint 3.
 - M-9 (`postcss` dentro de `next`) no es de servidor: queda para Frontend/auditoría.

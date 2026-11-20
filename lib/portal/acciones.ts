@@ -74,3 +74,8 @@ export const terminarVerComo = (c: Cliente) => c.rpc('terminar_ver_como');
  */
 export const anotarRechazo = (c: Cliente, accion: string, codigo: string) =>
   c.rpc('anotar_rechazo', { p_accion: accion, p_codigo: codigo });
+
+// Consumo del equipo (interno: solo super admin; el cliente nunca lo recibe). Valores en % de una semana.
+export const fijarConsumoProyecto = (c: Cliente, a: Args<'fijar_consumo_proyecto'>) => c.rpc('fijar_consumo_proyecto', a);
+export const anotarConsumoSprint = (c: Cliente, a: Args<'anotar_consumo_sprint'>) => c.rpc('anotar_consumo_sprint', a);
+export const consumoEquipo = (c: Cliente, proyectoId: string) => c.rpc('consumo_equipo', { p_proyecto_id: proyectoId });
