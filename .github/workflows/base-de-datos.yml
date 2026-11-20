@@ -29,7 +29,7 @@ jobs:
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
       - name: Prueba en seco
         if: github.ref != 'refs/heads/main'
-        run: supabase db push --dry-run
+        run: supabase db push --remote --dry-run
       - name: Aplicar migraciones
         if: github.ref == 'refs/heads/main'
-        run: supabase db push
+        run: supabase db push --remote
