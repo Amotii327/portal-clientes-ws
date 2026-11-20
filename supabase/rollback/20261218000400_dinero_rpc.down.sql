@@ -1,0 +1,20 @@
+-- Rollback del sprint 4 · funciones RPC de dinero.
+drop function if exists public.comprobantes_por_revisar();
+drop function if exists public.dinero_del_proyecto(uuid);
+drop function if exists public.generar_recordatorios_pago();
+drop function if exists public.rechazar_comprobante(uuid, text);
+drop function if exists public.confirmar_comprobante(uuid, text, numeric, date, text);
+drop function if exists public.subir_comprobante(uuid, text, text, text, integer, numeric, date, text);
+drop function if exists public.anotar_descarga_factura(uuid);
+drop function if exists public.anular_factura(uuid, text);
+drop function if exists public.crear_factura(uuid, text, numeric, date, text, text, integer, uuid);
+drop function if exists public.anular_abono(uuid, text);
+drop function if exists public.crear_abono(uuid, numeric, date, text, uuid, text, text);
+drop function if exists public.quitar_pago(uuid);
+drop function if exists public.editar_pago(uuid, text, numeric, date, uuid, boolean);
+drop function if exists public.agregar_pago(uuid, text, numeric, date, uuid);
+drop function if exists public.editar_contrato(uuid, numeric, numeric, date, text);
+drop function if exists public.crear_contrato(uuid, numeric, text, numeric, date);
+drop function if exists private.ruta_archivo(text, uuid, text[], text[]);
+drop function if exists private.contrato_para_cambio(uuid);
+drop function if exists private.dinero(numeric, boolean);

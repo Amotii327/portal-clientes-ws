@@ -140,8 +140,23 @@ function leerTabla(tabla, q, params) {
   return [];
 }
 
+const FRENO = {}; // correo -> { fallos, hasta }
+function freno(nombre, a) {
+  const correo = String(a.p_correo || '').toLowerCase();
+  const u = S.usuarios && Object.values(S.usuarios).find((x) => x.email === correo);
+  const f = FRENO[correo] || (FRENO[correo] = { fallos: 0, hasta: 0 });
+  const bloqueado = () => !!(u && u.frenada) || f.hasta > Date.now();
+  if (nombre === 'freno_acceso_consultar') return { bloqueado: bloqueado() };
+  if (bloqueado()) return { decision: 'reject' };
+  if (a.p_valido) { f.fallos = 0; return { decision: 'continue' }; }
+  f.fallos += 1;
+  if (f.fallos >= 5) { f.hasta = Date.now() + 15 * 60_000; return { decision: 'reject' }; }
+  return { decision: 'continue' };
+}
+
 function rpc(nombre, a, q, res) {
   const body_ = a;
+  if (nombre === 'freno_acceso_consultar' || nombre === 'freno_acceso_anotar') return freno(nombre, a);
   const c = nombre === 'politica_vigente' ? {} : contexto(q);
   if (nombre === 'politica_vigente') return '2026-11-v1';
   if (nombre === 'mi_contexto') return contexto(q);
@@ -236,7 +251,7 @@ const servidor = http.createServer(async (req, res) => {
   S.bitacora.push({ m: req.method, ruta });
 
   // ---- control para las pruebas ----
-  if (ruta === '/__reset') { reiniciar(); return json(res, 200, { ok: true }); }
+  if (ruta === '/__reset') { for (const k of Object.keys(FRENO)) delete FRENO[k]; reiniciar(); return json(res, 200, { ok: true }); }
   if (ruta === '/__estado') return json(res, 200, { ultimoToken: S.ultimoToken, preferencias: S.preferencias, empresas: S.empresas, miembros: S.miembros, perfiles: S.perfiles, exigir2fa: S.config.exigir_2fa_admin_cliente, invitaciones: S.invitaciones.map(sinSecretos), bitacora: S.bitacora.length, proyectos: S.proyectos, hitos: S.hitos, sprints: S.sprints, retrasos: S.retrasos, cambios: S.cambios, historial: S.historial, registro: S.registro, rechazos: S.rechazos, verComo: S.verComo, consumoP: S.consumoP, consumoS: S.consumoS, pagos: S.pagos, p1: S.p1, p2: S.p2, p3: S.p3 });
   if (ruta === '/__vaciar_proyectos') { S.proyectos = []; S.hitos = []; S.sprints = []; S.historial = []; S.retrasos = []; return json(res, 200, { ok: true }); }
   if (ruta === '/__confirmar') { const u = S.usuarios[url.searchParams.get('correo')]; if (u) u.confirmado = true; return json(res, 200, { ok: !!u }); }

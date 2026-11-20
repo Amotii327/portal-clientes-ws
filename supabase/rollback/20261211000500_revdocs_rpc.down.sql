@@ -1,0 +1,21 @@
+-- Rollback del sprint 3 · funciones RPC de revisiones y documentos.
+drop function if exists public.anotar_descarga(text, uuid);
+drop function if exists public.bandeja_revisiones(uuid);
+drop function if exists public.responder_revision(uuid, integer, text, text, uuid);
+drop function if exists public.reabrir_revision(uuid, text);
+drop function if exists public.nueva_version_revision(uuid);
+drop function if exists public.publicar_revision(uuid);
+drop function if exists public.editar_borrador_revision(uuid, text, text, text, uuid, text);
+drop function if exists public.crear_revision(uuid, text, text, uuid, uuid, text, text, uuid, text);
+drop function if exists public.fijar_visibilidad_documento(uuid, text, uuid[]);
+drop function if exists public.confirmar_version_documento(uuid, uuid, text);
+drop function if exists public.crear_documento(uuid, uuid, text, text, text, text, uuid[], uuid);
+drop function if exists public.marcar_archivo_recibido(uuid);
+drop function if exists public.borrar_archivo_cliente(uuid);
+drop function if exists public.confirmar_archivo_cliente(uuid, text, uuid);
+drop function if exists public.reservar_subida(text, uuid, text, text, bigint);
+drop function if exists private.registrar_descarga(text, uuid, uuid, uuid);
+drop function if exists private.sincronizar_permisos_documento(uuid, uuid, uuid[]);
+drop function if exists private.confirmar_reserva(uuid, text);
+drop function if exists private.enlace(text);
+drop function if exists private.exigir_no_ver_como();

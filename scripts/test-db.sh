@@ -7,6 +7,7 @@
 #      (Este archivo NO es una migracion y NO se despliega; imita lo que Supabase ya trae.)
 #   3. Aplica supabase/migrations/*.sql en orden.
 #   4. Corre supabase/tests/database/*.test.sql con pg_prove.
+#   4b. Corre supabase/tests/concurrencia/*.test.sql (dos sesiones con dblink) en una copia de la base.
 #   5. Prueba que las migraciones son reversibles: aplica supabase/rollback/*.down.sql en
 #      orden inverso, comprueba que quedo vacio y vuelve a aplicar todo.
 #
@@ -50,6 +51,10 @@ aplicar_todo() {
 
 psql_ postgres -c "create database prueba" >/dev/null
 psql_ prueba -f "$RAIZ/supabase/tests/local/mock_supabase.sql" >/dev/null
+# Mocks adicionales (p. ej. esquema storage). Se cargan despues del mock base y tampoco se despliegan.
+for f in "$RAIZ"/supabase/tests/local/mock_extra_*.sql; do
+  [ -e "$f" ] && psql_ prueba -f "$f" >/dev/null
+done
 echo "== Aplicando migraciones"
 aplicar_todo
 
@@ -57,6 +62,11 @@ echo "== Pruebas pgTAP"
 # pg_prove no necesita permisos de escritura en el repositorio
 comoPg env PGHOST="$PGHOST" PGPORT="$PGPORT" PGUSER=postgres PGDATABASE=prueba PGOPTIONS="$PGOPTIONS" \
   pg_prove --verbose --failures "$RAIZ"/supabase/tests/database/*.test.sql
+
+echo "== Concurrencia: dos sesiones reales (dblink) sobre una copia desechable de la base"
+psql_ postgres -c "create database concurrencia template prueba" >/dev/null
+comoPg env PGHOST="$PGHOST" PGPORT="$PGPORT" PGUSER=postgres PGDATABASE=concurrencia PGOPTIONS="$PGOPTIONS" \
+  pg_prove --verbose --failures "$RAIZ"/supabase/tests/concurrencia/*.test.sql
 
 echo "== Reversibilidad: bajar todas las migraciones y volver a subirlas"
 for f in $(ls "$RAIZ"/supabase/rollback/*.down.sql | sort -r); do

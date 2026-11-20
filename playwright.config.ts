@@ -16,6 +16,7 @@ const comun = {
   NEXT_OUTPUT: 'server',
   NEXT_PUBLIC_SUPABASE_URL: MOCK,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: 'llave-publica-de-prueba',
+  SUPABASE_SERVICE_ROLE_KEY: 'llave-de-sistema-falsa-de-prueba', // solo para el simulado; activa el freno en el servidor
   NEXT_TELEMETRY_DISABLED: '1',
 };
 

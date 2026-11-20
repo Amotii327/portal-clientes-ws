@@ -1,0 +1,15 @@
+drop table if exists public.horas_notas_internas;
+drop table if exists public.horas_registradas;
+drop table if exists public.ticket_adjuntos;
+drop table if exists public.ticket_mensajes;
+drop table if exists public.tickets;
+drop table if exists public.garantias;
+drop table if exists public.bolsa_avisos;
+drop table if exists public.bolsa_mensual;
+drop table if exists public.planes_mantenimiento_historial;
+drop table if exists public.planes_mantenimiento;
+drop table if exists public.planes_base_mantenimiento;
+drop function if exists private.tiempos_validos(jsonb);
+drop function if exists private.claves_preset_mantenimiento();
+drop function if exists private.claves_parametros_mantenimiento();
+drop function if exists private.json_solo_claves(jsonb, text[]);

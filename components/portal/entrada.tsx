@@ -7,6 +7,7 @@ import { Field, Input } from '@/components/ui/form';
 import { Clave, EntradaLayout } from '@/screens/entrada';
 import { Enlace } from '@/lib/router';
 import { crearClienteNavegador } from '@/lib/supabase/client';
+import { entrarServidor } from '@/lib/servidor/entrar';
 import { CLAVE_MINIMA, errorDeClave, esFrenada, mensajeDeAuth } from '@/lib/app/auth-errores';
 
 const CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -31,8 +32,9 @@ export function PantallaEntrar() {
     setErrClave(clave ? '' : 'Escribe tu contraseña.');
     if (bad || !clave) return;
     setEnviando(true);
-    const { error: err } = await crearClienteNavegador().auth.signInWithPassword({ email: correo.trim(), password: clave });
-    if (err) { setFrenada(esFrenada(err)); setError(mensajeDeAuth(err)); setEnviando(false); return; }
+    // El freno de 5 intentos corre en el servidor (plan B): la entrada pasa por la acción de servidor.
+    const r = await entrarServidor({ correo: correo.trim(), clave });
+    if (!r.ok) { setFrenada(r.frenada); setError(r.mensaje); setEnviando(false); return; }
     window.location.assign('/'); // recarga completa: el servidor lee la sesión nueva y decide a dónde vas
   };
 

@@ -137,3 +137,8 @@ insert into public.miembros (id, empresa_id, user_id, rol, aprobar, ver_dinero, 
 insert into auth.sessions (user_id) select id from auth.users;
 
 -- Politica vigente: la semilla de configuracion ya trae 'v1'.
+
+-- D-014: en las migraciones el 2FA del admin del cliente nace ENCENDIDO. Las pruebas de los sprints 1 a 3 entran
+-- con sesiones aal1 de admin, asi que cada prueba parte con el 2FA del admin apagado; la prueba 26 comprueba
+-- el valor de origen (antes de incluir este archivo) y la prueba 03 sigue probando el interruptor.
+update public.configuracion set valor = jsonb_set(valor, '{exigir_2fa_admin_cliente}', 'false'::jsonb) where clave = 'seguridad';

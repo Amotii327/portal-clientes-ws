@@ -1,0 +1,32 @@
+/** Se mantiene por compatibilidad: los tipos viven ahora en database.types.ts (integracion). */
+export type {
+  TipoRevision,
+  EstadoRevision,
+  DecisionRevision,
+  CategoriaDocumento,
+  VisibilidadDocumento,
+  EstadoArchivoCliente,
+  DestinoSubida,
+  BucketPortal,
+  Revision,
+  RevisionVersion,
+  Aprobacion,
+  Documento,
+  DocumentoVersion,
+  DocumentoPermiso,
+  ArchivoCliente,
+  ReservaSubida,
+  RevisionCreada,
+  RespuestaRevision,
+  DocumentoCreado,
+  ArchivoCreado,
+  ArchivoBorrado,
+  ItemBandeja,
+  BandejaRevisiones,
+} from './database.types';
+export {
+  TIPOS_PERMITIDOS,
+  TIPOS_DE_CAPTURA,
+  TAMANO_MAXIMO_ARCHIVO,
+  TAMANO_MAXIMO_CAPTURA,
+} from './database.types';

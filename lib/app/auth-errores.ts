@@ -1,5 +1,7 @@
 import { MENSAJE_GENERICO } from '@/lib/portal/errores';
 
+/** Código que devuelve el freno de intentos (gancho de Auth o, en el plan B, la acción de servidor `entrarServidor`). */
+export const CODIGO_FRENADA = 'cuenta_frenada_temporalmente';
 export const MENSAJES_FRENADA = 'Demasiados intentos fallidos. Espera 15 minutos e intenta de nuevo.';
 
 interface ErrorAuth { message?: string; code?: string; status?: number }
