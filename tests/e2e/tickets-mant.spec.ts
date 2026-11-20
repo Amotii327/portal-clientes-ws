@@ -76,18 +76,49 @@ test.describe('Cliente administrador', () => {
     expect(e.archivos.some((a) => a.endsWith('pantallazo-nuevo.png'))).toBe(true);
   });
 
-  test('rechaza archivos que no son imagen, video o audio y los de más de 50 MB', async ({ page }) => {
+  test('rechaza archivos que no son imagen, video o audio, los de más de 50 MB y los videos de más de 20 MB', async ({ page }) => {
     await entrarCliente(page);
     await page.goto('/cliente/tickets/nuevo');
     await page.waitForLoadState('networkidle');
     await page.setInputFiles('#t-adj', [{ name: 'clave.txt', mimeType: 'text/plain', buffer: Buffer.from('hola') }]);
     await expect(page.getByText('"clave.txt" no se puede adjuntar: solo imágenes, videos y audios.')).toBeVisible();
-    const grande = path.join(os.tmpdir(), 'grande-prueba.mp4');
+    const grande = path.join(os.tmpdir(), 'grande-prueba.mp3');
     fs.writeFileSync(grande, ''); fs.truncateSync(grande, 51 * 1024 * 1024); // archivo disperso de 51 MB
     await page.setInputFiles('#t-adj', grande);
-    await expect(page.getByText(/"grande-prueba.mp4" pesa 51,0 MB. El máximo es 50 MB por archivo./)).toBeVisible();
+    await expect(page.getByText(/"grande-prueba.mp3" pesa 51,0 MB. El máximo es 50 MB por archivo./)).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Archivos elegidos' })).toHaveCount(0);
+    // un video pesa como máximo 20 MB (SC-5): uno de 21 MB se rechaza y se invita a pegar el enlace
+    const video = path.join(os.tmpdir(), 'video-prueba.mp4');
+    fs.writeFileSync(video, ''); fs.truncateSync(video, 21 * 1024 * 1024);
+    await page.setInputFiles('#t-adj', video);
+    await expect(page.getByText(/"video-prueba.mp4" pesa 21,0 MB. Un video puede pesar hasta 20 MB./)).toBeVisible();
     await expect(page.getByRole('list', { name: 'Archivos elegidos' })).toHaveCount(0);
   });
+
+  test('link de video: alternativa al archivo, se valida, se guarda y se ve en el ticket', async ({ page }) => {
+    await entrarCliente(page);
+    await page.goto('/cliente/tickets/nuevo');
+    await page.waitForLoadState('networkidle');
+    await page.getByLabel('Título').fill('El video del error pesa mucho');
+    await page.getByLabel('Detalle').fill('Grabé la pantalla con el error y no cabe como archivo.');
+    await page.getByLabel('Link de video (opcional)').fill('http://inseguro.test/video');
+    await page.getByRole('button', { name: /Enviar|Crear ticket/ }).click();
+    await expect(page.getByText('El enlace debe empezar por https:// y no tener espacios.')).toBeVisible();
+    await expect(page).toHaveURL(/\/cliente\/tickets\/nuevo/);
+    await page.getByLabel('Link de video (opcional)').fill('https://nube.ejemplo.test/videos/error-pago.mp4');
+    await page.getByRole('button', { name: /Enviar|Crear ticket/ }).click();
+    await expect(page).toHaveURL(/\/cliente\/tickets\/[0-9a-f-]{36}$/);
+    await expect(page.getByTestId('enlaces-video')).toContainText('https://nube.ejemplo.test/videos/error-pago.mp4');
+    // el equipo de Websourcing también ve el enlace
+    const ctx = await page.context().browser()!.newContext({ baseURL: test.info().project.use.baseURL });
+    const s = await ctx.newPage();
+    await entrarSuper(s);
+    await s.goto('/admin/tickets');
+    await s.getByText('El video del error pesa mucho').first().click();
+    await expect(s.getByTestId('enlaces-video')).toContainText('error-pago.mp4');
+    await ctx.close();
+  });
+
 
   test('un ticket de acceso avisa que no se escriban claves', async ({ page }) => {
     await entrarCliente(page);

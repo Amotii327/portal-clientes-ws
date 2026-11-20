@@ -144,8 +144,8 @@ test('zona del super admin', async ({ page }, info) => {
   await page.getByRole('row', { name: /Equipo Uno/ }).getByRole('button', { name: 'Quitar' }).click();
   await ambosTemas(page, info, '26-admin-confirmar-quitar');
   await page.keyboard.press('Escape');
-  await page.goto('/admin/finanzas');
-  await expect(page.getByText('Disponible en el próximo sprint')).toBeVisible();
-  await ambosTemas(page, info, '27-admin-panel-muestra');
+  await page.goto('/admin/espacio');
+  await expect(page.getByTestId('fila-espacio').first()).toBeVisible();
+  await ambosTemas(page, info, '27-admin-espacio');
   expect(CODIGO).toBe('123456');
 });

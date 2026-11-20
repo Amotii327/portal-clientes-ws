@@ -35,7 +35,8 @@ export function sembrar(S, perfil = 'base') {
   const E = S.E;
   const rd = S.rd = {
     proyectos: [], sprints: [], revisiones: [], versiones: [], aprobaciones: [], documentos: [], docVersiones: [],
-    docPermisos: [], archivos: [], reservas: [], registro: [], historial: [], storage: {}, verComo: null,
+    docPermisos: [], archivos: [], reservas: [], registro: S.registro, // una sola tabla de registro de actividad para todos los módulos
+    historial: S.historial, storage: {}, verComo: null, // el historial del proyecto es uno solo para todos los módulos
   };
   const porCorreo = (c) => S.usuarios[c].id;
   const miembroDe = (c) => S.miembros.find((m) => m.user_id === porCorreo(c));
@@ -81,7 +82,7 @@ export function sembrar(S, perfil = 'base') {
   const aprobacion = (rid, empresa, n, decision, comentario, correo, dia, extra = {}) => {
     const aid = uuid();
     rd.aprobaciones.push({ id: aid, empresa_id: empresa, revision_id: rid, version: n, decision, comentario, captura_path: extra.captura ?? null, miembro_id: miembroDe(correo).id, persona: nombreDe(correo), creado_en: t(dia), _user_id: porCorreo(correo), _ip: '190.24.10.5', _ua: 'Mozilla/5.0 (Windows NT 10.0) Chrome/126.0 Safari/537.36' });
-    rd.registro.push({ id: rd.registro.length + 1, empresa_id: empresa, actor_id: porCorreo(correo), actor_tipo: 'usuario', accion: 'revision_respondida', entidad: 'revisiones', entidad_id: rid, detalle: { version: n, decision, aprobacion_id: aid, miembro_id: miembroDe(correo).id, user_agent: '_ua' in extra ? extra._ua : 'Mozilla/5.0 (Windows NT 10.0) Chrome/126.0 Safari/537.36' }, ip: '190.24.10.5', creado_en: t(dia) });
+    rd.registro.push({ id: S.seqReg++, empresa_id: empresa, actor_id: porCorreo(correo), actor_tipo: 'usuario', accion: 'revision_respondida', entidad: 'revisiones', entidad_id: rid, detalle: { version: n, decision, aprobacion_id: aid, miembro_id: miembroDe(correo).id, user_agent: '_ua' in extra ? extra._ua : 'Mozilla/5.0 (Windows NT 10.0) Chrome/126.0 Safari/537.36' }, ip: '190.24.10.5', creado_en: t(dia) });
   };
   revision(ID.revDiseno, E.A, ID.proyectoA1, 'diseno', null, 'Diseño y prototipo del portal', 'publicada', 1);
   version(ID.revDiseno, E.A, 1, { link_prueba: 'https://prototipo.ejemplo.test/portal', video_url: 'https://video.ejemplo.test/recorrido', resumen: 'Prototipo navegable con las pantallas del cliente y del equipo.', acta_documento_id: ID.docActa });
@@ -115,7 +116,7 @@ export function sembrar(S, perfil = 'base') {
   // Una sola tabla de proyectos y sprints para todos los módulos. Con el perfil 'revdocs' se usan los proyectos y sprints
   // de este módulo (ids fijos); con cualquier otro, los del sprint 2 (proyectos.mjs) y este módulo trabaja sobre ellos.
   if (perfil === 'revdocs') {
-    S.proyectos = rd.proyectos; S.sprints = rd.sprints; S.hitos = []; S.historial = []; S.retrasos = []; S.cambios = [];
+    S.proyectos = rd.proyectos; S.sprints = rd.sprints; S.hitos = []; S.historial.length = 0; S.retrasos = []; S.cambios = [];
     rd.proyectos.forEach((p) => crearHitos(S, p));
   } else { rd.proyectos = S.proyectos; rd.sprints = S.sprints; }
 }
@@ -196,8 +197,8 @@ export function rpc(S, nombre, a, c, req, falla) {
   const puedeSubir = !!miembro && (miembro.rol === 'admin_cliente' || miembro.subir_archivos);
   if (enVerComo && nombre !== 'anotar_descarga') return falla('ver_como_solo_lectura');
   if (c.estado !== 'activo' && !esSuper && !enVerComo) return falla('no_autorizado');
-  const anotar = (empresa, accion, entidad, entidad_id, detalle = {}) => rd.registro.push({ id: rd.registro.length + 1, empresa_id: empresa, actor_id: c.user_id, actor_tipo: 'usuario', accion, entidad, entidad_id, detalle, ip: '190.24.10.5', creado_en: ahora() });
-  const historia = (empresa, pid, tipo, detalle, visible) => rd.historial.push({ id: rd.historial.length + 1, empresa_id: empresa, proyecto_id: pid, tipo, detalle, visible_cliente: visible, creado_en: ahora() });
+  const anotar = (empresa, accion, entidad, entidad_id, detalle = {}) => rd.registro.push({ id: S.seqReg++, empresa_id: empresa, actor_id: c.user_id, actor_tipo: 'usuario', accion, entidad, entidad_id, detalle, ip: '190.24.10.5', creado_en: ahora() });
+  const historia = (empresa, pid, tipo, detalle, visible) => rd.historial.push({ id: S.seqHist++, empresa_id: empresa, proyecto_id: pid, tipo, actor_tipo: 'equipo_websourcing', detalle, visible_cliente: visible, creado_en: ahora() });
   const rev = (rid) => rd.revisiones.find((r) => r.id === rid);
   const ultima = (rid) => rd.versiones.filter((v) => v.revision_id === rid).sort((x, y) => y.version - x.version)[0];
   const usarReserva = (rid, destino, empresa) => {
@@ -383,7 +384,7 @@ export function rpc(S, nombre, a, c, req, falla) {
       }
       const aid = uuid(); const ua = String(req?.headers?.['user-agent'] ?? '').slice(0, 300); const ip = '190.24.10.5';
       rd.aprobaciones.push({ id: aid, empresa_id: r.empresa_id, revision_id: r.id, version: a.p_version, decision: a.p_decision, comentario: texto || null, captura_path: captura, miembro_id: miembro.id, persona: S.perfiles[c.user_id].nombre, creado_en: ahora(), _user_id: c.user_id, _ip: ip, _ua: ua });
-      rd.registro.push({ id: rd.registro.length + 1, empresa_id: r.empresa_id, actor_id: c.user_id, actor_tipo: 'usuario', accion: 'revision_respondida', entidad: 'revisiones', entidad_id: r.id, detalle: { version: a.p_version, decision: a.p_decision, aprobacion_id: aid, miembro_id: miembro.id, user_agent: ua }, ip, creado_en: ahora() });
+      rd.registro.push({ id: S.seqReg++, empresa_id: r.empresa_id, actor_id: c.user_id, actor_tipo: 'usuario', accion: 'revision_respondida', entidad: 'revisiones', entidad_id: r.id, detalle: { version: a.p_version, decision: a.p_decision, aprobacion_id: aid, miembro_id: miembro.id, user_agent: ua }, ip, creado_en: ahora() });
       r.estado = a.p_decision === 'apruebo' ? 'aprobada' : 'cambios_pedidos'; r.actualizado_en = ahora();
       const s = rd.sprints.find((x) => x.id === r.sprint_id);
       if (s) { s.estado = r.estado === 'aprobada' ? 'terminado' : 'en_curso'; s.terminado_en = r.estado === 'aprobada' ? ahora() : null; }

@@ -28,5 +28,6 @@ const nextConfig = {
   trailingSlash: !servidor,
   images: { unoptimized: true },
   reactStrictMode: true,
+  devIndicators: false, // el indicador de desarrollo no debe tapar nada en las capturas
 };
 export default nextConfig;

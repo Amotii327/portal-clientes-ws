@@ -327,7 +327,7 @@ export async function almacenamiento(S, req, res, ruta, c) {
 }
 
 /** Estado interno para las pruebas (sin los bytes de los archivos). */
-export const estado = (S) => ({ ...S.tm, archivos: Object.keys(S.tm.archivos) });
+export const estado = (S) => ({ ...S.tm, rechazos: S.rechazos ?? [], archivos: Object.keys(S.tm.archivos) }); // los rechazos anotados son los compartidos (anotar_rechazo vive en proyectos.mjs)
 
 /** Tickets no cerrados que esa persona puede ver (lo que suman panel_super_admin() e inicio_cliente()). */
 export function ticketsAbiertos(S, c) {

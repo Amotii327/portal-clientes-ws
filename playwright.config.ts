@@ -6,7 +6,8 @@ import { defineConfig } from '@playwright/test';
  * - Servidor B (3101): igual pero SIN esa variable: el enlace/token no puede llegar al navegador.
  * El navegador es el Chrome instalado en el equipo (no se descargan navegadores).
  */
-// Los puertos se pueden cambiar (PW_PUERTO, PW_MOCK_PUERTO) para correr varias copias del proyecto a la vez sin pisarse.
+// Puertos: solo dos variables, PW_PUERTO (app A; la B es el siguiente) y PW_MOCK_PUERTO (Supabase simulado). tests/e2e/ayudas.ts lee las mismas.
+// Se pueden cambiar para correr varias copias del proyecto a la vez sin pisarse.
 const P = Number(process.env.PW_PUERTO ?? 3100);
 const PM = Number(process.env.PW_MOCK_PUERTO ?? 54399);
 const MOCK = `http://127.0.0.1:${PM}`;
@@ -14,6 +15,7 @@ const comun = {
   NEXT_OUTPUT: 'server',
   NEXT_PUBLIC_SUPABASE_URL: MOCK,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: 'llave-publica-de-prueba',
+  SUPABASE_SERVICE_ROLE_KEY: 'llave-de-sistema-falsa-de-prueba', // solo para el simulado; activa el freno de 5 intentos en el servidor
   NEXT_TELEMETRY_DISABLED: '1',
 };
 

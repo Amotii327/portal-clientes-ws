@@ -100,13 +100,19 @@ test.describe('Inicio del cliente (datos reales)', () => {
 });
 
 test.describe('Super admin: panel y proyectos', () => {
-  test('panel general con datos reales y "—" en lo que llega después', async ({ page }) => {
+  test('panel general con datos reales: proyectos, pagos vencidos y tickets abiertos', async ({ page }) => {
     await entrarSuper(page);
     await page.getByRole('link', { name: 'Panel general' }).first().click();
     await expect(page).toHaveURL(/\/admin\/panel/);
     await expect(page.getByRole('heading', { name: 'Panel general' })).toBeVisible();
-    await expect(page.getByText('Pagos vencidos').locator('..').locator('..')).toContainText('—');
-    await expect(page.getByText('Tickets abiertos').locator('..').locator('..')).toContainText('—');
+    // pagos y tickets ya son reales (sprints 4 y 5): los números salen de los datos de ejemplo, no de un "—"
+    const abiertos = ((await (await fetch(`${MOCK}/__tm`)).json()).tickets as { estado: string }[]).filter((t) => t.estado !== 'cerrado').length;
+    const tarjetaPagos = page.getByText('Pagos vencidos', { exact: true }).locator('..').locator('..');
+    await expect(tarjetaPagos).toContainText('1');
+    await expect(tarjetaPagos).not.toContainText('—');
+    const tarjetaTickets = page.getByText('Tickets abiertos', { exact: true }).locator('..').locator('..');
+    await expect(tarjetaTickets).toContainText(String(abiertos));
+    await expect(tarjetaTickets).not.toContainText('—');
     const a = page.getByTestId('atencion');
     await expect(a.getByTestId('atencion-hito')).toContainText('hito 8');
     await expect(a.getByTestId('atencion-hito')).toContainText('espera al cliente');

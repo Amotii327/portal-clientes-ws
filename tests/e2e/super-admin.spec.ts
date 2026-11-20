@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { APP, CLAVE, MOCK, abrirSesion, entrarCliente, entrarSuper, estadoMock, reiniciar } from './ayudas';
+import { APP, CLAVE, CODIGO, MOCK, abrirSesion, entrarCliente, entrarSuper, estadoMock, reiniciar } from './ayudas';
 
 const A = '11111111-1111-4111-8111-111111111111';
 test.beforeEach(async () => { await reiniciar(); });
@@ -57,6 +57,11 @@ test.describe('Super admin: empresas', () => {
     await p2.getByLabel('Nombre completo').fill('Jefa del Taller');
     await p2.getByRole('checkbox').check();
     await p2.getByRole('button', { name: 'Activar mi cuenta' }).click();
+    // D-014: el administrador de la empresa crea su código de 6 dígitos antes de entrar
+    await expect(p2).toHaveURL(/\/verificar/);
+    await p2.getByRole('button', { name: 'Empezar' }).click();
+    await p2.getByLabel('Código de 6 dígitos').fill(CODIGO);
+    await p2.getByRole('button', { name: 'Verificar y entrar' }).click();
     await expect(p2).toHaveURL(/\/cliente\/inicio/);
     await expect(p2.getByRole('navigation', { name: 'Menú principal' }).getByText('Mi equipo')).toBeVisible();
     await expect(p2.getByText('Taller Nuevo S.A.S.').first()).toBeVisible();
