@@ -54,3 +54,7 @@ Todas aprobadas por el dueño el 2026-11-19 ("sí a todo" a las propuestas de la
 ## D-015 · Copia diaria de archivos · 2026-11-19
 - **Qué se decidió:** la copia diaria de los archivos se guarda en Hostinger (fuera de Supabase).
 - **Aprobó:** dueño
+
+## D-017 · Tema visual del portal · 2026-11-19
+- **Qué se decidió:** el portal tiene las dos propuestas como temas: Clara (por defecto) y Oscura. Cada usuario elige la suya y queda guardada.
+- **Aprobó:** dueño
