@@ -21,7 +21,7 @@ export default async function LayoutPrivado({ children }: { children: React.Reac
   if (necesita2FA(ctx.estado)) redirect('/verificar');
   const tema = ctx.tema === 'oscura' ? 'dark' : 'light';
   const aplicarTema = <script dangerouslySetInnerHTML={{ __html: `document.documentElement.dataset.theme='${tema}'` }} />;
-  if (ctx.estado !== 'activo' && ctx.estado !== 'super_admin') {
+  if (ctx.estado !== 'activo' && ctx.estado !== 'super_admin' && ctx.estado !== 'ver_como') {
     return <>{aplicarTema}<PantallaDeAcceso estado={ctx.estado} empresa={ctx.empresa?.nombre} /></>;
   }
   return <>{aplicarTema}<ZonaPrivada contexto={ctx}>{children}</ZonaPrivada></>;
