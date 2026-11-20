@@ -4,6 +4,7 @@
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { FUNCIONES_S2, funcionS2, leerProyectos, sembrarProyectos } from './proyectos.mjs';
+import * as revdocs from './revdocs.mjs';
 
 const PUERTO = Number(process.env.MOCK_PUERTO || 54399);
 const CLAVE = 'ClaveSegura123';
@@ -14,7 +15,7 @@ const ahora = () => new Date().toISOString();
 const en = (dias) => new Date(Date.now() + dias * 86400000).toISOString();
 
 let S;
-function reiniciar() {
+function reiniciar(perfil = 'base') {
   const E = { A: '11111111-1111-4111-8111-111111111111', B: '22222222-2222-4222-8222-222222222222' };
   S = {
     E, empresas: [], miembros: [], perfiles: {}, usuarios: {}, invitaciones: [], facturacion: {}, preferencias: {}, config: { exigir_2fa_admin_cliente: false },
@@ -54,6 +55,7 @@ function reiniciar() {
   inv('tok-otro-555', 'otro@cliente.test');
   S.invitaciones.at(-1).empresa_id = E.A;
   sembrarProyectos(S);
+  revdocs.sembrar(S, perfil);
 }
 reiniciar();
 
@@ -113,7 +115,9 @@ function filtrar(filas, params) {
   for (const [k, v] of params) {
     if (['select', 'order', 'limit', 'offset', 'on_conflict', 'columns'].includes(k)) continue;
     if (v.startsWith('eq.')) r = r.filter((f) => String(f[k]) === v.slice(3));
-    else if (v.startsWith('in.(')) { const lista = v.slice(4, -1).split(','); r = r.filter((f) => lista.includes(String(f[k]))); }
+    else if (v.startsWith('neq.')) r = r.filter((f) => String(f[k]) !== v.slice(4));
+    else if (v.startsWith('in.(')) { const l = v.slice(4, -1).split(',').map((x) => x.replace(/^"|"$/g, '')); r = r.filter((f) => l.includes(String(f[k]))); }
+    else if (v === 'not.is.null') r = r.filter((f) => f[k] !== null && f[k] !== undefined);
     else if (v === 'is.null') r = r.filter((f) => f[k] === null || f[k] === undefined);
   }
   const ord = params.get('order');
@@ -125,6 +129,7 @@ function leerTabla(tabla, q, params) {
   const c = ctxActivo(q); if (!c) return [];
   const esSuper = c.estado === 'super_admin'; const eid = c.empresa?.id; const admin = c.rol === 'admin_cliente';
   const s2 = leerProyectos(S, tabla, c, filtrar, params); if (s2 !== undefined) return s2;
+  const rdFilas = revdocs.leer(S, tabla, c, params, filtrar); if (rdFilas) return rdFilas;
   if (tabla === 'perfiles') return esSuper ? filtrar(Object.values(S.perfiles), params) : [];
   if (tabla === 'empresas') return filtrar(esSuper ? S.empresas : S.empresas.filter((e) => e.id === eid), params);
   if (tabla === 'datos_facturacion') {
@@ -163,6 +168,7 @@ function rpc(nombre, a, q, res) {
   const falla = (cod) => { dbErr(res, cod); return undefined; };
   if (c.estado === 'sin_sesion') return falla('no_autenticado');
   if (FUNCIONES_S2.has(nombre)) return funcionS2(S, nombre, body_, c, falla);
+  if (revdocs.esFuncionRevDocs(nombre)) return revdocs.rpc(S, nombre, a, c, S.reqActual, falla);
   if (c.estado === 'ver_como') return falla('ver_como_solo_lectura');
   const esSuper = c.estado === 'super_admin'; const admin = c.estado === 'activo' && c.rol === 'admin_cliente';
   const crearInvitacion = (empresa_id, correo, rol, perms = {}) => {
@@ -233,7 +239,8 @@ function rpc(nombre, a, q, res) {
 
 async function cuerpo(req) {
   const trozos = []; for await (const t of req) trozos.push(t);
-  const txt = Buffer.concat(trozos).toString();
+  req._raw = Buffer.concat(trozos);
+  const txt = req._raw.toString('utf8');
   try { return txt ? JSON.parse(txt) : {}; } catch { return {}; }
 }
 const json = (res, status, body) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(body === undefined ? '' : JSON.stringify(body)); };
@@ -246,15 +253,25 @@ const servidor = http.createServer(async (req, res) => {
   res.setHeader('access-control-allow-headers', req.headers['access-control-request-headers'] || '*');
   res.setHeader('access-control-expose-headers', 'content-range');
   if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
-  const ruta = url.pathname; const body = ['POST', 'PUT', 'PATCH'].includes(req.method) ? await cuerpo(req) : {};
+  const ruta = url.pathname; const body = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) ? await cuerpo(req) : {};
+  S.reqActual = req;
   const q = quien(req);
   S.bitacora.push({ m: req.method, ruta });
 
   // ---- control para las pruebas ----
-  if (ruta === '/__reset') { for (const k of Object.keys(FRENO)) delete FRENO[k]; reiniciar(); return json(res, 200, { ok: true }); }
+  if (ruta === '/__reset') { for (const k of Object.keys(FRENO)) delete FRENO[k]; reiniciar(url.searchParams.get('perfil') || 'base'); return json(res, 200, { ok: true }); }
   if (ruta === '/__estado') return json(res, 200, { ultimoToken: S.ultimoToken, preferencias: S.preferencias, empresas: S.empresas, miembros: S.miembros, perfiles: S.perfiles, exigir2fa: S.config.exigir_2fa_admin_cliente, invitaciones: S.invitaciones.map(sinSecretos), bitacora: S.bitacora.length, proyectos: S.proyectos, hitos: S.hitos, sprints: S.sprints, retrasos: S.retrasos, cambios: S.cambios, historial: S.historial, registro: S.registro, rechazos: S.rechazos, verComo: S.verComo, consumoP: S.consumoP, consumoS: S.consumoS, pagos: S.pagos, p1: S.p1, p2: S.p2, p3: S.p3 });
   if (ruta === '/__vaciar_proyectos') { S.proyectos = []; S.hitos = []; S.sprints = []; S.historial = []; S.retrasos = []; return json(res, 200, { ok: true }); }
   if (ruta === '/__confirmar') { const u = S.usuarios[url.searchParams.get('correo')]; if (u) u.confirmado = true; return json(res, 200, { ok: !!u }); }
+  if (ruta === '/__ver_como') {
+    const sup = [...S.supers][0];
+    if (!body.rol) delete S.verComo[sup];
+    else { const e = S.empresas.find((x) => x.id === body.empresa_id); S.verComo[sup] = { sesion_id: crypto.randomUUID(), empresa_id: e.id, empresa_nombre: e.nombre, rol: body.rol, aprobar: !!body.aprobar, ver_dinero: !!body.ver_dinero, ver_todos_tickets: !!body.ver_todos_tickets, subir_archivos: !!body.subir_archivos, vence_en: new Date(Date.now() + 3600000).toISOString() }; }
+    return json(res, 200, { ok: true });
+  }
+  if (ruta === '/__miembro') { const m = S.miembros.find((x) => x.user_id === S.usuarios[body.correo]?.id); if (m) Object.assign(m, body.campos); return json(res, 200, { ok: !!m }); }
+  if (ruta === '/__revdocs') return json(res, 200, { ...S.rd, storage: Object.keys(S.rd.storage), firmas: undefined });
+  if (ruta.startsWith('/storage/v1/') && revdocs.almacenamiento(S, req, res, url, req._raw ?? Buffer.alloc(0), body, ctxActivo(q), json, respuestaErr)) return;
   if (ruta === '/__config') { Object.assign(S.config, body); return json(res, 200, S.config); }
 
   // ---- Auth ----
@@ -322,6 +339,7 @@ const servidor = http.createServer(async (req, res) => {
   if (m) {
     const tabla = m[1]; const c = ctxActivo(q);
     if (req.method === 'GET') {
+      if (revdocs.selectProhibido(tabla, url.searchParams)) return respuestaErr(res, 403, { code: '42501', message: 'permission denied for table ' + tabla, details: null, hint: null });
       const filas = leerTabla(tabla, q, url.searchParams);
       if ((req.headers.accept || '').includes('pgrst.object')) return filas.length === 1 ? json(res, 200, filas[0]) : respuestaErr(res, 406, { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned', details: null, hint: null });
       return json(res, 200, filas);

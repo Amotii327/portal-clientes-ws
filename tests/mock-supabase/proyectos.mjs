@@ -51,7 +51,7 @@ export function sembrarProyectos(S) {
   S.consumoS[s1.id] = { estimado_pct: 60, real_pct: 70 };
 }
 
-function crearHitos(S, p) {
+export function crearHitos(S, p) {
   NOMBRES_HITOS.forEach((nombre, i) => S.hitos.push({ id: uuid(), empresa_id: p.empresa_id, proyecto_id: p.id, numero: i + 1, nombre, estado: 'pendiente', fecha_planeada: null, fecha_real: null, visible: i + 1 !== 13, creado_en: ahora(), actualizado_en: ahora() }));
 }
 function hist(S, p, tipo, detalle, visible = true) {

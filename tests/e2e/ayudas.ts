@@ -7,8 +7,9 @@ export const MOCK = `http://127.0.0.1:${process.env.PW_MOCK_PUERTO || process.en
 export const CLAVE = 'ClaveSegura123';
 export const CODIGO = '123456';
 
-export async function reiniciar(config?: Record<string, unknown>) {
-  await fetch(`${MOCK}/__reset`);
+/** `perfil` elige los proyectos de ejemplo: 'base' (los del sprint 2) o 'revdocs' (los de las pruebas de revisiones y documentos). */
+export async function reiniciar(config?: Record<string, unknown>, perfil: 'base' | 'revdocs' = 'base') {
+  await fetch(`${MOCK}/__reset?perfil=${perfil}`);
   if (config) await fetch(`${MOCK}/__config`, { method: 'POST', body: JSON.stringify(config) });
 }
 export const estadoMock = async () => (await fetch(`${MOCK}/__estado`)).json();

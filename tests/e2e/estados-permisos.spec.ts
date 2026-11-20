@@ -135,7 +135,8 @@ test.describe('Pantallas de muestra', () => {
     await page.goto('/cliente/dinero');
     await expect(page).toHaveURL(/\/entrar/);
     await entrarCliente(page, 'equipo-dinero@cliente.test');
-    for (const ruta of ['/cliente/revisiones', '/cliente/tickets', '/cliente/documentos', '/cliente/dinero']) {
+    // Revisiones y Documentos ya son reales (sprint 3): ver tests/e2e/revisiones.spec.ts y documentos.spec.ts.
+    for (const ruta of ['/cliente/tickets', '/cliente/dinero']) {
       await page.goto(ruta);
       await expect(page.getByText('Disponible en el próximo sprint')).toBeVisible();
     }

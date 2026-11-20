@@ -1,6 +1,6 @@
 'use client';
 import * as React from 'react';
-import { Activity, BellRing, KeyRound, Receipt, ClipboardCheck, FolderOpen, Home, LayoutDashboard, LifeBuoy, LogOut, Menu, Users, Wallet, Wrench, Building2, Banknote, Inbox, EyeOff, FolderKanban } from 'lucide-react';
+import { Activity, BellRing, KeyRound, Receipt, ClipboardCheck, FolderOpen, Home, LayoutDashboard, LifeBuoy, LogOut, Menu, Users, Wallet, Wrench, Building2, Banknote, Inbox, EyeOff, FolderKanban, Files } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,7 +29,7 @@ export function Logo({ className, solo }: { className?: string; solo?: boolean }
 /** Alturas que descuentan la barra del prototipo (2.75rem) solo cuando existe. */
 export const ALTO_PANTALLA = MODO_REAL ? 'min-h-dvh' : 'min-h-[calc(100dvh-2.75rem)]';
 
-interface Item { to: string; label: string; icon: React.ReactNode; badge?: number; pronto?: boolean }
+interface Item { to: string; label: string; icon: React.ReactNode; badge?: number; pronto?: boolean; tambien?: string[] }
 
 function useNav(): Item[] {
   const s = useStore();
@@ -42,7 +42,11 @@ function useNav(): Item[] {
       { to: '/admin/clientes', label: 'Clientes', icon: <Building2 className={ic} /> },
       { to: '/admin/proyectos', label: 'Proyectos', icon: <FolderKanban className={ic} /> },
       { to: '/admin/panel', label: 'Panel general', icon: <LayoutDashboard className={ic} /> },
-      { to: '/admin/aprobaciones', label: 'Bandeja de aprobaciones', icon: <Inbox className={ic} />, badge: p ? 0 : porRevisar, pronto: p },
+      { to: '/admin/aprobaciones', label: 'Bandeja de aprobaciones', icon: <Inbox className={ic} />, badge: p ? 0 : porRevisar },
+      ...(p ? [
+        { to: '/admin/documentos', label: 'Documentos de clientes', icon: <FolderOpen className={ic} /> },
+        { to: '/admin/archivos', label: 'Archivos de clientes', icon: <Files className={ic} /> },
+      ] : []),
       { to: '/admin/finanzas', label: 'Finanzas', icon: <Banknote className={ic} />, pronto: p },
       { to: '/admin/tickets', label: 'Tickets de todos', icon: <LifeBuoy className={ic} />, pronto: p },
       { to: '/admin/mantenimiento', label: 'Mantenimiento', icon: <Wrench className={ic} />, pronto: p },
@@ -53,10 +57,10 @@ function useNav(): Item[] {
   const p = MODO_REAL;
   const items: Item[] = [
     { to: '/cliente/inicio', label: 'Inicio', icon: <Home className={ic} /> },
-    { to: '/cliente/revisiones', label: 'Revisiones', icon: <ClipboardCheck className={ic} />, badge: p ? 0 : pendientes, pronto: p },
+    { to: '/cliente/revisiones', label: 'Revisiones', icon: <ClipboardCheck className={ic} />, badge: p ? 0 : pendientes },
   ];
   if (s.can.verDinero) items.push({ to: '/cliente/dinero', label: 'Dinero', icon: <Wallet className={ic} />, pronto: p });
-  items.push({ to: '/cliente/tickets', label: 'Tickets', icon: <LifeBuoy className={ic} />, pronto: p }, { to: '/cliente/documentos', label: 'Documentos', icon: <FolderOpen className={ic} />, pronto: p });
+  items.push({ to: '/cliente/tickets', label: 'Tickets', icon: <LifeBuoy className={ic} />, pronto: p }, { to: '/cliente/documentos', label: 'Documentos', icon: <FolderOpen className={ic} />, tambien: ['/cliente/archivos'] });
   if (s.can.esAdmin) items.push({ to: '/cliente/equipo', label: 'Mi equipo', icon: <Users className={ic} /> });
   if (p && (s.can.esAdmin || s.can.verDinero)) items.push({ to: '/cliente/facturacion', label: 'Datos de facturación', icon: <Receipt className={ic} /> });
   if (!p && s.empresa.mantenimiento.activo) items.push({ to: '/cliente/mantenimiento', label: 'Mi plan de mantenimiento', icon: <Wrench className={ic} /> });
@@ -69,7 +73,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav aria-label="Menú principal" className="flex flex-col gap-1">
       {items.map((it) => {
-        const activo = ruta === it.to || ruta.startsWith(it.to + '/');
+        const activo = [it.to, ...(it.tambien ?? [])].some((t) => ruta === t || ruta.startsWith(t + '/'));
         return (
           <Enlace key={it.to} to={it.to} onClick={onNavigate} aria-current={activo ? 'page' : undefined}
             className={cn('flex h-11 items-center gap-3 rounded px-3 text-sm font-medium transition-colors', activo ? 'bg-primary/15 text-primary-text' : 'text-muted-foreground hover:bg-surface-2 hover:text-foreground')}>
