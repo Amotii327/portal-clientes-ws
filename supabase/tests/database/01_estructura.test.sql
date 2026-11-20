@@ -11,7 +11,7 @@ select is_empty(
 
 -- 2. Las 10 tablas del sprint 1 existen.
 select is((select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
-            where n.nspname = 'public' and c.relkind = 'r'), 21, 'hay 21 tablas en public (sprints 1 y 2)');
+            where n.nspname = 'public' and c.relkind = 'r'), 27, 'hay 27 tablas en public (sprints 1, 2 y 3: revisiones y documentos)');
 
 -- 3. Toda tabla con RLS tiene politicas, salvo super_admins (cerrada a proposito).
 select is_empty(
