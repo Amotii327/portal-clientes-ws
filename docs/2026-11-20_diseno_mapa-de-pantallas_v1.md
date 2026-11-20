@@ -1,6 +1,6 @@
 # Diseño · Mapa de pantallas y sistema de diseño · Portal de clientes
 
-**Equipo Websourcing · Diseño** · Versión v1 · Estado: para revisión del dueño (control 3). No se ha enviado al cliente.
+**Equipo Websourcing · Diseño** · Versión v1 · Estado: aprobado por el dueño el 2026-11-19 (control 3), con los dos temas: Clara por defecto y Oscura (D-017).
 Base: `memoria-del-proyecto/requerimientos-aprobados.md` (v3), arquitectura v4 y decisión D-016 (shadcn/ui).
 
 ## 0. Resumen para el dueño
