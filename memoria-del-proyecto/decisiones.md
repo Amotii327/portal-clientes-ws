@@ -58,3 +58,7 @@ Todas aprobadas por el dueño el 2026-11-19 ("sí a todo" a las propuestas de la
 ## D-017 · Tema visual del portal · 2026-11-19
 - **Qué se decidió:** el portal tiene las dos propuestas como temas: Clara (por defecto) y Oscura. Cada usuario elige la suya y queda guardada.
 - **Aprobó:** dueño
+
+## D-018 · Proyecto de Supabase · 2026-11-19
+- **Qué se decidió:** proyecto `portal-clientes-ws` (ID icinxatqxbpdvssdecke) en la organización Amotii, región East US (us-east-1). Por ahora en plan gratuito para desarrollo; se sube a Pro antes de producción (copias diarias y sin pausa). El VPS debe quedar en EE. UU. para estar cerca de la base.
+- **Aprobó:** dueño (creó el proyecto)
