@@ -18,11 +18,10 @@ const en = (dias) => new Date(Date.now() + dias * 86400000).toISOString();
 
 let S;
 function reiniciar(perfil = 'base') {
-  S.perfil = perfil;
   const E = { A: '11111111-1111-4111-8111-111111111111', B: '22222222-2222-4222-8222-222222222222' };
   S = {
     E, empresas: [], miembros: [], perfiles: {}, usuarios: {}, invitaciones: [], facturacion: {}, preferencias: {}, config: { exigir_2fa_admin_cliente: false },
-    tokens: {}, refresh: {}, ultimoToken: null, bitacora: [], supers: new Set(),
+    tokens: {}, refresh: {}, ultimoToken: null, bitacora: [], supers: new Set(), perfil,
   };
   const emp = (id, nombre, nit, estado) => S.empresas.push({ id, nombre, nit_registro: nit, logo_path: null, estado, motivo_pausa: null, pausada_en: null, pausada_por: null, creada_en: '2026-11-10T10:00:00Z', actualizado_en: '2026-11-10T10:00:00Z' });
   emp(E.A, 'Comercial Ejemplo S.A.S.', '900123456-7', 'activa');
